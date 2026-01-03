@@ -1,0 +1,430 @@
+EMAIL + CALENDAR COPILOT (OPTION A) — END-TO-END DESIGN SPEC / DEV PLAN
+=====================================================================
+
+Purpose
+-------
+Private web app for two consumer Gmail accounts (you + spouse) that:
+- Runs daily digest + real-time VIP alerts
+- Automatically labels/archives/trashes and app-level snoozes emails
+- Summarizes important emails, ignoring spam/promotions
+- Detects emails needing responses and creates Gmail drafts in your style
+- Detects calendar invites and in-text meeting proposals
+- Suggests meeting times from calendar availability and creates events with invites
+- Summarizes PDF/DOC attachments
+- Learns from feedback (“not important”) to improve future triage
+
+NOTE ON CONSTRAINTS (READ FIRST)
+--------------------------------
+1) Google OAuth Testing-mode can require re-authorization roughly every 7 days:
+   - In-app UX must handle “reconnect” via OAuth flow, not token-paste.
+2) Gmail push notifications require Pub/Sub and Gmail watch renewal at least every 7 days
+   (recommended daily).
+3) Gmail “Snooze” is not reliably exposed as a first-class API: implement app-level snooze.
+4) For safety, default “delete” = TRASH, not permanent delete.
+
+Option A Summary (Recommended Architecture)
+------------------------------------------
+Google Cloud–native stack:
+- Frontend: Next.js (React) PWA (mobile + desktop)
+- Backend API: Cloud Run service (“web-api”)
+- Worker: Cloud Run service (“worker”) for background jobs
+- Storage: Cloud SQL Postgres (pgvector optional), GCS bucket for attachments/artifacts
+- Queue: Cloud Tasks (HTTP tasks) + Cloud Scheduler (cron triggers)
+- Realtime: Gmail push → Pub/Sub topic → push subscription → webhook endpoint
+- LLM: OpenAI API (server-side only; structured outputs w/ JSON Schema)
+
+1) Requirements
+---------------
+Functional (must-have):
+- Inbox triage: categorize, rank importance, summarize, detect “needs response”
+- Actions: label/archive/trash/delete (trash by default) + app-level snooze
+- Draft replies: create Gmail drafts (MIME/RFC 2822 base64url) and attach to thread
+- Cadence: daily digest + VIP real-time alerts
+- Calendar: detect invites + in-text proposals; suggest times using freebusy; create event with
+  edit-before-confirm; send invites automatically
+- Attachment summarization: PDF + DOCX minimum; store extracted text + summaries
+- Accounts: separate user logins, strict data isolation (no shared inbox views)
+
+Non-goals (v1):
+- Auto-send email
+- Cross-account sharing/visibility
+- Non-Gmail providers (add later)
+- Enterprise compliance tooling
+
+2) System Architecture
+----------------------
+Components:
+A) Frontend (PWA)
+- Pages:
+  - Today (VIP alerts + digest)
+  - Triage Queue (sortable list)
+  - Email Detail (summary, actions, draft, calendar)
+  - Drafts (created/proposed)
+  - Calendar (suggestions/created)
+  - Settings (VIPs/rules/automation/working hours/reauth)
+
+B) Backend API (Cloud Run)
+- Auth/session + Google OAuth connect/refresh
+- Gmail/Calendar API integration
+- Serves UI data, receives Pub/Sub webhooks
+- Enqueues jobs into Cloud Tasks
+
+C) Worker (Cloud Run)
+- Incremental/full sync
+- Parsing + attachment extraction
+- LLM triage/summarize/draft/calendar extraction
+- Calendar freebusy/time suggestions
+- Applies automations (labels/archive/trash/snooze resurface)
+- Builds daily digest
+- Renews Gmail watch (triggered by scheduler)
+
+D) Storage
+- Cloud SQL Postgres: normalized email metadata, triage results, feedback, preferences, audit logs
+- GCS: optional attachments and extracted artifacts (or store extracted text only)
+
+E) Queue + Scheduler
+- Cloud Tasks: durable job queue for worker HTTP tasks
+- Cloud Scheduler:
+  - Daily digest
+  - Daily watch renewal
+  - Snooze sweep every 5–15 minutes
+  - Periodic “safety full sync” fallback (e.g., nightly) to handle missed pushes
+
+F) Gmail push notifications
+- Pub/Sub topic + push subscription to /webhooks/gmail/push
+- Webhook must ACK quickly; enqueue sync job
+
+G) OpenAI API (server-side)
+- Use structured outputs (JSON Schema) for classifiers/extractors/summaries
+- Never expose API keys in client
+- Store prompt_version + schema_version + model_id with results for regression testing
+
+3) Google Cloud Setup (Junior Dev Checklist)
+--------------------------------------------
+3.1 Create GCP project: email-copilot-private
+3.2 Enable APIs:
+- Gmail API, Calendar API
+- Pub/Sub, Cloud Tasks, Cloud Scheduler
+- Cloud Run, Secret Manager, Cloud SQL Admin
+
+3.3 OAuth consent screen (External; Testing initially)
+- Add both emails as test users
+- Expect periodic reauth; implement reconnect UX
+
+3.4 OAuth credentials
+- Web application client ID/secret
+- Redirect URIs:
+  - https://YOUR_DOMAIN/auth/google/callback
+  - http://localhost:3000/auth/google/callback (dev)
+- Store in Secret Manager:
+  - GOOGLE_OAUTH_CLIENT_ID
+  - GOOGLE_OAUTH_CLIENT_SECRET
+
+3.5 Pub/Sub
+- Topic: gmail-push-topic
+- Push subscription: gmail-push-sub
+  - Endpoint: https://api.YOUR_DOMAIN/webhooks/gmail/push
+- Grant Pub/Sub publish rights to Gmail push service account:
+  gmail-api-push@system.gserviceaccount.com
+
+3.6 Cloud SQL (Postgres)
+- Enable SSL, store DB creds in Secret Manager
+- Optional: enable pgvector extension
+
+3.7 Cloud Run services
+- web-api (API + optional Next SSR)
+- worker (job execution)
+- Configure: 1–2 CPU, 1–2GB RAM; set IAM auth for internal endpoints
+
+4) OAuth + Accounts + Reauth UX
+-------------------------------
+4.1 App login
+- Use Sign-in with Google (identity) as app login
+- Store users keyed by Google “sub”
+
+4.2 OAuth scopes
+Gmail:
+- gmail.modify (needed for labels/archive/trash; sufficient for drafts.create when used properly)
+Calendar:
+- calendar (edit) for creating events + reading availability
+
+4.3 Token storage
+- Store refresh token encrypted at rest (Cloud KMS envelope)
+- Access tokens can be stored short-term encrypted or in-memory
+
+4.4 Reauth UX (no token-paste)
+- Detect invalid_grant on refresh → show persistent “Reconnect Google” banner
+- Button launches OAuth flow; store new refresh token; resume queue
+- Keep status in DB: token_status = NEEDS_REAUTH
+
+5) Gmail Ingestion & Sync
+-------------------------
+5.1 Watch + Pub/Sub (real-time)
+- On connect: call users.watch with label filter INBOX and Pub/Sub topic
+- Store watch expiration + baseline historyId
+- Renew daily (scheduler) to avoid expiration
+
+5.2 Webhook flow
+- Pub/Sub push → /webhooks/gmail/push
+- Validate request, find user by emailAddress
+- Enqueue GMAIL_INCREMENTAL_SYNC(user_id, history_id)
+
+5.3 Incremental sync (history-based)
+- Call history.list(startHistoryId = last_history_id)
+- If 404 / invalid historyId → do full sync (last 30 days)
+- Extract new/changed message IDs and enqueue PROCESS_MESSAGE
+
+5.4 Full sync (fallback)
+- messages.list in:inbox newer_than:30d (or date range)
+- Upsert emails; then set last_history_id to latest observed
+
+5.5 Thread context
+- Fetch threads.get for reply generation or deeper context
+- For triage, usually last message + small context window is enough
+
+6) Parsing & Attachments
+------------------------
+6.1 Parse message body
+- Prefer text/plain; else html → text
+- Strip quoted history + signatures (heuristics)
+- Store clean_body_text + headers + snippet + label_ids
+
+6.2 Attachments
+- If part has attachmentId: messages.attachments.get
+- Else read part.body.data (base64url)
+- Supported: PDF, DOCX, TXT (v1)
+- Extraction:
+  - PDF: pdfminer.six or pymupdf
+  - DOCX: python-docx
+- Chunk extracted text and summarize progressively
+
+6.3 Scanned PDFs
+- If extraction yields very little text: flag “likely scanned”
+- v1: warn; v1.1+: optional OCR (Cloud Vision)
+
+7) LLM Harness (Consistency & Safety)
+-------------------------------------
+Principles:
+- Separate decisions from generation
+- Schema-validate everything
+- Low temperature for classification/extraction
+- Version prompts and schemas
+
+LLM pipeline:
+1) FAST deterministic rules (pre-LLM):
+   - Spam labels/blocklist → IGNORE
+   - VIP senders → HIGH/VIP
+2) Triage classification (structured JSON)
+3) Summarization (structured JSON)
+4) Calendar extraction (structured JSON)
+5) Draft generation (structured JSON) on-demand
+
+Validation + retry:
+- Validate JSON against schema
+- If invalid: one repair retry
+- If still invalid: fallback prompt or mark needs_review
+
+Feedback learning:
+- Record NOT_IMPORTANT feedback + optional “always ignore sender/topic”
+- Rules update immediately
+- Similarity suppression via embeddings (pgvector) for longer-term learning
+
+Style modeling:
+- Weekly/nightly job to build per-user style profile from Sent mail
+- Retrieve 3–5 similar examples via embeddings for draft conditioning
+- Create Gmail draft via RFC2822 MIME, base64url encode, drafts.create
+
+8) Calendar Detection & Scheduling
+----------------------------------
+8.1 Detect invites
+- Identify text/calendar parts and .ics attachments
+- Parse ICS → calendar_candidate(type=INVITE)
+
+8.2 In-text proposals
+- Deterministic datetime parsing (dateparser)
+- LLM extraction for ambiguity handling; output candidates with confidence + ambiguities
+
+8.3 Suggest times
+- Use Calendar freebusy.query for primary or selected calendars
+- Compute free intervals; propose top 5 slots
+- Respect working hours, buffers, lunch block, default duration
+
+8.4 Create event + send invites
+- Show editable modal: title/start/end/tz/location/description/attendees
+- On confirm: events.insert with sendUpdates=all (or externalOnly)
+- Store created event ID in DB
+
+9) Automation Engine (Labels/Archive/Trash/Snooze)
+--------------------------------------------------
+9.1 Label namespace (created on connect)
+- Copilot/Action
+- Copilot/FYI
+- Copilot/Newsletter
+- Copilot/Ignore
+- Copilot/Snoozed
+- Copilot/VIP
+
+9.2 Archive
+- Remove INBOX label via messages.modify
+
+9.3 Trash/Delete
+- Default automation uses TRASH (reversible)
+- Permanent delete only if explicitly enabled
+
+9.4 Snooze workaround (app-level)
+- Apply label Copilot/Snoozed, remove INBOX, store snooze_until in DB
+- Cron sweep re-adds INBOX when due, removes Copilot/Snoozed
+
+10) Database Schema (Postgres)
+------------------------------
+Core tables:
+- users
+- google_oauth_tokens
+- gmail_sync_state
+- emails
+- attachments
+- email_triage
+- drafts
+- calendar_candidates
+- calendar_events_created
+- user_preferences
+- email_feedback
+- audit_log
+
+(Implement strict user_id scoping and indexes on:
+ user_id, gmail_message_id, gmail_thread_id, internal_date_ts, importance_label, needs_response)
+
+11) Backend API Endpoints
+-------------------------
+Auth:
+- GET /auth/google/start
+- GET /auth/google/callback
+- POST /auth/logout
+
+Integration status:
+- GET /api/integrations/google/status
+- POST /api/integrations/google/reconnect
+
+Emails:
+- GET /api/emails?filter=&sort=
+- GET /api/emails/:id
+- POST /api/emails/:id/feedback
+- POST /api/emails/:id/actions
+
+Drafts:
+- POST /api/emails/:id/draft/propose
+- POST /api/drafts/:draftId/create_in_gmail
+- GET /api/drafts/:draftId
+
+Calendar:
+- POST /api/emails/:id/calendar/propose
+- POST /api/calendar/candidates/:id/suggest_times
+- POST /api/calendar/candidates/:id/create_event
+
+Digest/Alerts:
+- GET /api/digests/latest
+- GET /api/alerts
+- POST /api/digest/run_now
+
+Webhook:
+- POST /webhooks/gmail/push
+
+12) Worker Jobs (Cloud Tasks)
+-----------------------------
+Job types:
+- GMAIL_INCREMENTAL_SYNC
+- GMAIL_FULL_SYNC
+- PROCESS_MESSAGE
+- PROCESS_ATTACHMENTS
+- TRIAGE_MESSAGE
+- PROPOSE_DRAFT
+- PROPOSE_CALENDAR
+- SUGGEST_MEETING_TIMES
+- CREATE_GMAIL_DRAFT
+- CREATE_CALENDAR_EVENT
+- GENERATE_DAILY_DIGEST
+- RENEW_GMAIL_WATCHES
+- SNOOZE_SWEEP
+
+13) Frontend UX (Simple for Non-Technical User)
+-----------------------------------------------
+Navigation:
+- Today, Triage, Drafts, Calendar, Settings
+
+Today:
+- VIP alerts section (real-time)
+- Daily digest section grouped by category
+- Quick actions on each card
+
+Email detail:
+- Summary/Original/Attachments tabs
+- Actions row: Archive/Trash/Snooze/Not important
+- Draft panel: propose + edit + create Gmail draft
+- Calendar panel: propose + suggested times + create event
+
+Settings:
+- VIP senders/domains/keywords
+- Blocked senders/keywords
+- Automation level (warn before enabling trash/aggressive)
+- Digest time
+- Working hours & meeting duration defaults
+- Reconnect Google status & button
+
+14) Reliability / Observability / Security
+------------------------------------------
+- Encrypt refresh tokens
+- Backend-only OpenAI calls
+- Audit log for destructive actions
+- Pub/Sub webhook must ACK fast; enqueue work
+- Nightly fallback full sync to cover missed pushes
+- Prompt/schema versioning and JSON validation
+- Default “trash” not permanent delete
+- Minimize logging of email bodies; log hashes + metadata
+- Store OpenAI retention disclosure in settings/help
+
+15) Phased Implementation Plan
+------------------------------
+Phase 0: Repo + infra scaffold
+- Monorepo: /apps/web, /apps/api, /apps/worker, /packages/shared, /infra
+- CI/CD deploy Cloud Run services
+- Provision Cloud SQL + Secret Manager + Pub/Sub + Tasks + Scheduler
+
+Phase 1: Auth + Google connect
+- Sign-in with Google
+- Consent for Gmail/Calendar scopes
+- Token refresh + reconnect banner
+
+Phase 2: Gmail sync (polling-first)
+- Full sync last 7–14 days
+- Parse/store emails
+- UI list + manual actions (label/archive/trash/snooze)
+
+Phase 3: LLM triage + daily digest
+- Schemas + storage
+- Daily digest job + Today UI
+
+Phase 4: Draft proposals + Gmail drafts
+- Style profile job
+- Draft propose + create Gmail draft (thread-correct)
+
+Phase 5: Attachments summarization
+- attachments.get + PDF/DOCX extraction + summarization
+- Attachments tab UI
+
+Phase 6: Calendar
+- in-text extraction + freebusy suggestions + create events with invites
+
+Phase 7: Realtime
+- Gmail watch + Pub/Sub webhook + history-based incremental sync
+- VIP alert surfacing + (optional) web push notifications
+
+Open Items (Final Defaults to Decide)
+-------------------------------------
+1) “Delete” semantics: trash only vs permanent delete after X days
+2) Digest delivery: in-app only vs also email/push
+3) VIP alerts channel: in-app vs web push vs SMS
+4) Working hours defaults and lunch block
+5) Calendar scope: primary only vs selectable calendars
+6) Attachment storage: extracted text only vs store binaries in GCS
+
+END OF SPEC
