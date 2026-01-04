@@ -34,6 +34,8 @@ export default async function DashboardPage() {
   const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:8000';
   const digestContent = digest?.content_json as DigestContent | null;
   const sections = digestContent?.sections ?? null;
+  const triageCap = digestContent?.triage_cap;
+  const triageCapHit = Boolean(digestContent?.triage_cap_hit);
   const digestVipSenders = Array.isArray(digestContent?.vip_senders)
     ? digestContent?.vip_senders
     : null;
@@ -106,6 +108,14 @@ export default async function DashboardPage() {
                   <li>{newsletterCount} newsletters</li>
                 </ul>
               </div>
+              {triageCapHit ? (
+                <div className="banner banner-warning">
+                  <p>
+                    Triage capped at {triageCap ?? '100'} emails. Some messages were not reviewed
+                    this run.
+                  </p>
+                </div>
+              ) : null}
               <details className="digest-section" open>
                 <summary>VIP alerts ({unreadAlerts.length})</summary>
                 {unreadAlerts.length === 0 ? (

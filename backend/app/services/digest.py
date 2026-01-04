@@ -35,7 +35,7 @@ def generate_daily_digest(
     settings: Settings,
     user_id: int,
     since_ts: datetime,
-    max_triage: int = 25,
+    max_triage: int = 100,
     now: datetime | None = None,
 ) -> Digest:
     if since_ts.tzinfo is None:
@@ -52,6 +52,9 @@ def generate_daily_digest(
         .scalars()
         .all()
     )
+
+    pending_triage_count = sum(1 for email in emails if email.triage is None)
+    triage_cap_hit = pending_triage_count > max_triage
 
     alerts = (
         db.execute(
@@ -99,6 +102,8 @@ def generate_daily_digest(
         "generated_at": now.isoformat(),
         "since_ts": since_ts.isoformat(),
         "triaged_count": triaged,
+        "triage_cap": max_triage,
+        "triage_cap_hit": triage_cap_hit,
         "vip_count": len(alerts),
         "vip_senders": vip_senders,
         "counts": {name: len(items) for name, items in sections.items()},

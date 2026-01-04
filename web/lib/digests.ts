@@ -16,6 +16,8 @@ export type DigestContent = {
   generated_at: string;
   since_ts: string;
   triaged_count: number;
+  triage_cap?: number;
+  triage_cap_hit?: boolean;
   vip_count?: number;
   vip_senders?: string[];
   counts: Record<string, number>;
