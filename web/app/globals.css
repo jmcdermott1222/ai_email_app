@@ -161,6 +161,37 @@ select {
   background: #0b1120;
 }
 
+.feedback {
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0f172a;
+}
+
+.feedback-compact {
+  padding: 0.75rem;
+}
+
+.feedback-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  margin-bottom: 0.8rem;
+}
+
+.checkbox-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.feedback-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
 a {
   color: #38bdf8;
   text-decoration: none;

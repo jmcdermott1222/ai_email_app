@@ -16,6 +16,10 @@ DEFAULT_PREFERENCES = {
     },
     "meeting_default_duration_min": 30,
     "automation_level": "SUGGEST_ONLY",
+    "blocked_senders": [],
+    "blocked_domains": [],
+    "blocked_keywords": [],
+    "vip_senders": [],
 }
 
 

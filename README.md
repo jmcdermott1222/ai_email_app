@@ -81,6 +81,7 @@ make web-dev
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
 - Triage (requires session cookie): `POST http://localhost:8000/api/emails/{id}/triage`
+- Feedback (requires session cookie): `POST http://localhost:8000/api/emails/{id}/feedback`
 
 ## Common Commands
 

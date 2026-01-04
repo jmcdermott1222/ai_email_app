@@ -83,6 +83,13 @@ class EmailTriageResponse(APIModel):
     why_important: str | None = None
 
 
+class EmailFeedbackRequest(APIModel):
+    feedback_label: Literal["IMPORTANT", "NOT_IMPORTANT", "SPAM", "NEWSLETTER_OK"]
+    reason: str | None = None
+    always_ignore_sender: bool | None = None
+    always_ignore_keyword: str | None = None
+
+
 EmailDetail.model_rebuild()
 
 

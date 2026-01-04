@@ -3,6 +3,7 @@ import { redirect } from 'next/navigation';
 
 import { getGoogleIntegrationStatusServer } from '../../lib/auth';
 import { getEmailsServer } from '../../lib/emails';
+import FeedbackControls from '../components/feedback-controls';
 import SyncNowButton from './sync-now-button';
 
 export default async function DashboardPage() {
@@ -65,6 +66,7 @@ export default async function DashboardPage() {
                   {email.why_important ? <span>{email.why_important}</span> : null}
                 </div>
               ) : null}
+              <FeedbackControls emailId={email.id} compact />
             </div>
           ))
         )}

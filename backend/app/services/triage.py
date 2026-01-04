@@ -33,10 +33,25 @@ def triage_email(
     pref_data = preferences.preferences if preferences else {}
     blocked_senders = set(pref_data.get("blocked_senders", []))
     blocked_domains = set(pref_data.get("blocked_domains", []))
+    blocked_keywords = set(pref_data.get("blocked_keywords", []))
     vip_senders = set(pref_data.get("vip_senders", []))
 
     sender = (email.from_email or "").lower()
     sender_domain = sender.split("@")[-1] if "@" in sender else ""
+
+    combined_text = f"{email.subject or ''} {email.clean_body_text or ''}".lower()
+    if any(keyword in combined_text for keyword in blocked_keywords):
+        return _store_triage(
+            db,
+            email,
+            {
+                "importance_label": "IGNORE",
+                "needs_response": False,
+                "summary_bullets": ["Contains a blocked keyword."],
+                "why_important": "Matches your ignore keyword list.",
+            },
+            settings.openai_model,
+        )
 
     if sender in blocked_senders or sender_domain in blocked_domains:
         return _store_triage(

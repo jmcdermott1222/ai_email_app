@@ -5,6 +5,7 @@ import { useParams, useRouter } from 'next/navigation';
 
 import { apiFetch } from '../../../lib/api';
 import { AttachmentSummary, EmailDetail } from '../../../lib/emails';
+import FeedbackControls from '../../components/feedback-controls';
 
 export default function EmailDetailPage() {
   const params = useParams();
@@ -87,6 +88,7 @@ export default function EmailDetailPage() {
         </button>
       )}
       <p>{email.clean_body_text ?? ''}</p>
+      <FeedbackControls emailId={email.id} />
       <div className="attachments">
         <div className="attachments-header">
           <h4>Attachments</h4>
