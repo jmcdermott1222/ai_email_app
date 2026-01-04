@@ -45,6 +45,22 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+If you have multiple Python versions installed, prefer Python 3.11 explicitly:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+To avoid global tool conflicts, you can also run tooling directly from the venv:
+
+```bash
+../backend/.venv/bin/ruff check backend --fix
+../backend/.venv/bin/black backend
+../backend/.venv/bin/pytest backend
+```
+
 4. Web dependencies:
 
 ```bash
