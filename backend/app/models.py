@@ -156,7 +156,7 @@ class Attachment(Base, TimestampMixin):
     filename: Mapped[str | None] = mapped_column(String(500), nullable=True)
     mime_type: Mapped[str | None] = mapped_column(String(255), nullable=True)
     size_bytes: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    gmail_attachment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    gmail_attachment_id: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     storage_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     extraction_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
