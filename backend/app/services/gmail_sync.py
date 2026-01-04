@@ -48,6 +48,7 @@ def _upsert_attachment(db: Session, values: dict) -> None:
                 "filename": insert_stmt.excluded.filename,
                 "mime_type": insert_stmt.excluded.mime_type,
                 "size_bytes": insert_stmt.excluded.size_bytes,
+                "extraction_status": insert_stmt.excluded.extraction_status,
                 "updated_at": datetime.now(UTC),
             },
         )
@@ -158,6 +159,7 @@ def full_sync_inbox(
                             "filename": attachment.filename,
                             "mime_type": attachment.mime_type,
                             "size_bytes": attachment.size_estimate,
+                            "extraction_status": "NOT_PROCESSED",
                         },
                     )
         except Exception as exc:

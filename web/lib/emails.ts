@@ -14,3 +14,25 @@ export type EmailSummary = {
 export async function getEmailsServer(cookieHeader: string): Promise<EmailSummary[]> {
   return apiFetchWithCookies<EmailSummary[]>('/api/emails?filter=inbox&limit=50&offset=0', cookieHeader);
 }
+
+export type AttachmentSummary = {
+  id: number;
+  filename: string | null;
+  mime_type: string | null;
+  size_bytes: number | null;
+  gmail_attachment_id: string | null;
+  extraction_status: string | null;
+};
+
+export type EmailDetail = EmailSummary & {
+  to_emails: string[] | null;
+  clean_body_text: string | null;
+  attachments: AttachmentSummary[];
+};
+
+export async function getEmailDetailServer(
+  cookieHeader: string,
+  emailId: number,
+): Promise<EmailDetail> {
+  return apiFetchWithCookies<EmailDetail>(`/api/emails/${emailId}`, cookieHeader);
+}

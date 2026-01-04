@@ -79,6 +79,7 @@ make web-dev
 - Preferences (requires session cookie): `http://localhost:8000/api/preferences`
 - Manual Gmail sync (requires session cookie): `POST http://localhost:8000/api/sync/full`
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
+- Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
 
 ## Common Commands
 

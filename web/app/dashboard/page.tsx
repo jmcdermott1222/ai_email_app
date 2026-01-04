@@ -55,7 +55,9 @@ export default async function DashboardPage() {
                     : ''}
                 </span>
               </div>
-              <div className="email-subject">{email.subject ?? '(No subject)'}</div>
+              <a className="email-subject" href={`/dashboard/${email.id}`}>
+                {email.subject ?? '(No subject)'}
+              </a>
               <div className="email-snippet">{email.snippet ?? ''}</div>
             </div>
           ))

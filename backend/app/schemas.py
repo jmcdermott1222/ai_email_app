@@ -55,8 +55,21 @@ class EmailDetail(APIModel):
     ingest_status: str | None = None
     ingest_error: str | None = None
     clean_body_text: str | None = None
+    attachments: list["AttachmentRead"] = []
     created_at: datetime
     updated_at: datetime
+
+
+class AttachmentRead(APIModel):
+    id: int
+    filename: str | None = None
+    mime_type: str | None = None
+    size_bytes: int | None = None
+    gmail_attachment_id: str | None = None
+    extraction_status: str | None = None
+
+
+EmailDetail.model_rebuild()
 
 
 class EmailTriageRead(APIModel):

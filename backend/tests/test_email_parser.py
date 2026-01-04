@@ -1,6 +1,7 @@
 """Tests for Gmail message parsing."""
 
 import json
+from io import BytesIO
 from pathlib import Path
 
 from app.services.email_parser import parse_message
@@ -27,6 +28,36 @@ def test_parse_html_email():
     assert parsed.subject == "HTML email"
     assert parsed.from_email == "alice@example.com"
     assert parsed.clean_body_text == "Hi there"
+
+
+def test_docx_extraction():
+    from docx import Document
+
+    from app.services.attachments import extract_text_from_docx
+
+    doc = Document()
+    doc.add_paragraph("Docx sample text")
+    buffer = BytesIO()
+    doc.save(buffer)
+    content = buffer.getvalue()
+
+    text = extract_text_from_docx(content)
+    assert text == "Docx sample text"
+
+
+def test_pdf_extraction():
+    import fitz
+
+    from app.services.attachments import extract_text_from_pdf
+
+    doc = fitz.open()
+    page = doc.new_page()
+    page.insert_text((72, 72), "PDF sample text")
+    content = doc.write()
+    doc.close()
+
+    text = extract_text_from_pdf(content)
+    assert "PDF sample text" in text
 
 
 def test_parse_multipart_with_attachment():

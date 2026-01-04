@@ -155,6 +155,8 @@ class Attachment(Base, TimestampMixin):
     gmail_attachment_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
     storage_path: Mapped[str | None] = mapped_column(String(1024), nullable=True)
     extracted_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    extraction_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    sha256: Mapped[str | None] = mapped_column(String(64), nullable=True)
     summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     email: Mapped[Email] = relationship(back_populates="attachments")

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from app.auth import get_current_user
 from app.db import get_db
 from app.models import Email
-from app.schemas import EmailDetail, EmailRead
+from app.schemas import AttachmentRead, EmailDetail, EmailRead
 
 router = APIRouter(prefix="/api")
 
@@ -44,4 +44,9 @@ def get_email(
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
         )
-    return EmailDetail.model_validate(email)
+    attachments = [AttachmentRead.model_validate(item) for item in email.attachments]
+    data = EmailDetail.model_validate(email)
+    return EmailDetail(
+        **data.model_dump(),
+        attachments=attachments,
+    )

@@ -117,10 +117,31 @@ select {
 .email-subject {
   font-weight: 600;
   margin-bottom: 0.25rem;
+  display: inline-block;
 }
 
 .email-snippet {
   color: #cbd5f5;
+  font-size: 0.9rem;
+}
+
+.attachments {
+  margin-top: 1.5rem;
+}
+
+.attachments-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.attachment-row {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr;
+  gap: 1rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid #1f2937;
   font-size: 0.9rem;
 }
 
