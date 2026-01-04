@@ -9,10 +9,12 @@ from sqlalchemy import select
 
 from app.auth import get_current_user
 from app.config import Settings, get_settings
+from app.crypto import get_crypto
 from app.db import get_db
 from app.models import Digest
 from app.schemas import DigestRead
 from app.services.digest import default_since_ts, generate_daily_digest
+from app.services.gmail_sync import full_sync_inbox
 
 router = APIRouter(prefix="/api")
 
@@ -42,6 +44,8 @@ def run_digest_now(
     settings: Settings = Depends(get_settings),  # noqa: B008
     db=Depends(get_db),  # noqa: B008
 ):
+    crypto = get_crypto(settings)
+    full_sync_inbox(db, current_user.id, settings, crypto)
     latest = (
         db.execute(
             select(Digest)

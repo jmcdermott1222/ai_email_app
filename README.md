@@ -99,7 +99,7 @@ make web-dev
 - Manual Gmail sync (requires session cookie): `POST http://localhost:8000/api/sync/full`
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
 - Latest digest (requires session cookie): `GET http://localhost:8000/api/digests/latest`
-- Run digest now (requires session cookie): `POST http://localhost:8000/api/digests/run_now`
+- Run digest now (requires session cookie, syncs inbox first): `POST http://localhost:8000/api/digests/run_now`
 - VIP alerts (requires session cookie): `GET http://localhost:8000/api/alerts`
 - Mark alert read (requires session cookie): `POST http://localhost:8000/api/alerts/{id}/mark_read`
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
@@ -117,6 +117,7 @@ make web-dev
 - Create Gmail draft (requires session cookie): `POST http://localhost:8000/api/drafts/{id}/create_in_gmail`
 - List drafts (requires session cookie): `GET http://localhost:8000/api/drafts?email_id={id}`
 - Snooze sweep (worker): `POST http://localhost:8001/internal/jobs/snooze_sweep`
+- Digest run for all users (worker, syncs inbox first): `POST http://localhost:8001/internal/jobs/digest_run`
 
 ## Common Commands
 
