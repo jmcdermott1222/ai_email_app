@@ -52,6 +52,28 @@ def test_gmail_client_calls_build_and_list_messages(monkeypatch):
     assert result == {"ok": True}
 
 
+def test_gmail_client_list_messages_with_page_token(monkeypatch):
+    service = _build_service_mock()
+    build_mock = MagicMock(return_value=service)
+    monkeypatch.setattr("app.services.gmail_client.build", build_mock)
+
+    client = GmailClient(credentials=MagicMock())
+    client.list_messages(
+        q="is:unread",
+        label_ids=["INBOX"],
+        max_results=10,
+        page_token="t1",
+    )
+
+    service.list.assert_called_once_with(
+        userId="me",
+        q="is:unread",
+        labelIds=["INBOX"],
+        maxResults=10,
+        pageToken="t1",
+    )
+
+
 def test_gmail_client_create_draft(monkeypatch):
     service = _build_service_mock()
     build_mock = MagicMock(return_value=service)

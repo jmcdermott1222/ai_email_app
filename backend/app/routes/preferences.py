@@ -50,7 +50,7 @@ def update_preferences(
         db.add(preferences)
         db.commit()
 
-    current = preferences.preferences or default_preferences()
+    current = {**default_preferences(), **(preferences.preferences or {})}
     updates = payload.model_dump(exclude_none=True)
     if "working_hours" in updates and updates["working_hours"] is None:
         updates.pop("working_hours", None)
@@ -64,6 +64,8 @@ def update_preferences(
             detail=str(exc),
         ) from exc
 
-    preferences.preferences = validated.model_dump()
+    persisted = dict(current)
+    persisted.update(validated.model_dump())
+    preferences.preferences = persisted
     db.commit()
     return validated

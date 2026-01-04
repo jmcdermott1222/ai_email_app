@@ -17,18 +17,16 @@ class GmailClient:
             cache_discovery=False,
         )
 
-    def list_messages(self, q=None, label_ids=None, max_results=50):
-        return (
-            self._service.users()
-            .messages()
-            .list(
-                userId="me",
-                q=q,
-                labelIds=label_ids,
-                maxResults=max_results,
-            )
-            .execute()
-        )
+    def list_messages(self, q=None, label_ids=None, max_results=50, page_token=None):
+        params = {
+            "userId": "me",
+            "q": q,
+            "labelIds": label_ids,
+            "maxResults": max_results,
+        }
+        if page_token:
+            params["pageToken"] = page_token
+        return self._service.users().messages().list(**params).execute()
 
     def get_message(self, message_id, format="full"):
         return (

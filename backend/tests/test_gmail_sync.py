@@ -17,7 +17,7 @@ class FakeGmailClient:
     def __init__(self, messages):
         self._messages = messages
 
-    def list_messages(self, q=None, label_ids=None, max_results=50):
+    def list_messages(self, q=None, label_ids=None, max_results=50, page_token=None):
         return {
             "messages": [{"id": message_id} for message_id in self._messages.keys()]
         }
@@ -61,6 +61,7 @@ def test_full_sync_inbox_idempotent():
                 "headers": [
                     {"name": "From", "value": "Alice <alice@example.com>"},
                     {"name": "To", "value": "Bob <bob@example.com>"},
+                    {"name": "Cc", "value": "Carol <carol@example.com>"},
                     {"name": "Subject", "value": "Test"},
                 ],
                 "parts": [
@@ -69,6 +70,11 @@ def test_full_sync_inbox_idempotent():
                         "filename": "report.pdf",
                         "mimeType": "application/pdf",
                         "body": {"attachmentId": "att-1", "size": 1234},
+                    },
+                    {
+                        "filename": "inline.txt",
+                        "mimeType": "text/plain",
+                        "body": {"size": 10},
                     },
                 ],
             },
@@ -82,7 +88,71 @@ def test_full_sync_inbox_idempotent():
         assert len(emails) == 1
         assert emails[0].gmail_message_id == "msg-1"
         assert emails[0].clean_body_text.startswith("Hello there")
+        assert emails[0].cc_emails == ["carol@example.com"]
 
         attachments = session.execute(select(Attachment)).scalars().all()
         assert len(attachments) == 1
         assert attachments[0].gmail_attachment_id == "att-1"
+
+
+def test_full_sync_inbox_paginates():
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+
+    crypto = LocalDevCrypto("BB0iMhzIaIMZeMACaGkNykzlCaM3Ndoth7-vBeQiJ4U=")
+    settings = Settings(
+        google_oauth_client_id="client",
+        google_oauth_client_secret="secret",
+        encryption_key="unused",
+    )
+
+    class PagingGmailClient:
+        def __init__(self, messages):
+            self._messages = messages
+
+        def list_messages(
+            self, q=None, label_ids=None, max_results=50, page_token=None
+        ):
+            if page_token is None:
+                return {"messages": [{"id": "msg-1"}], "nextPageToken": "page-2"}
+            if page_token == "page-2":
+                return {"messages": [{"id": "msg-2"}]}
+            return {"messages": []}
+
+        def get_message(self, message_id, format="full"):
+            return self._messages[message_id]
+
+    base_payload = {
+        "threadId": "thread-1",
+        "labelIds": ["INBOX"],
+        "snippet": "Hello there",
+        "internalDate": str(int(datetime(2024, 1, 1, tzinfo=UTC).timestamp() * 1000)),
+        "payload": {
+            "mimeType": "text/plain",
+            "headers": [
+                {"name": "From", "value": "Alice <alice@example.com>"},
+                {"name": "To", "value": "Bob <bob@example.com>"},
+                {"name": "Subject", "value": "Test"},
+            ],
+            "body": {"data": base64.urlsafe_b64encode(b"Hello").decode("utf-8")},
+        },
+    }
+
+    with SessionLocal() as session:
+        user = User(email="user@example.com", google_sub="sub-1")
+        session.add(user)
+        session.flush()
+        token = GoogleOAuthToken(user_id=user.id, refresh_token_enc=crypto.encrypt("x"))
+        session.add(token)
+        session.commit()
+
+        messages = {
+            "msg-1": {"id": "msg-1", **base_payload},
+            "msg-2": {"id": "msg-2", **base_payload},
+        }
+        client = PagingGmailClient(messages)
+        full_sync_inbox(session, user.id, settings, crypto, client=client)
+
+        emails = session.execute(select(Email)).scalars().all()
+        assert len(emails) == 2

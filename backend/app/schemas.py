@@ -54,6 +54,7 @@ class EmailDetail(APIModel):
     snippet: str | None = None
     from_email: str | None = None
     to_emails: list[str] | None = None
+    cc_emails: list[str] | None = None
     label_ids: list[str] | None = None
     ingest_status: str | None = None
     ingest_error: str | None = None

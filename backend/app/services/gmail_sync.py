@@ -74,8 +74,19 @@ def full_sync_inbox(
         client = GmailClient(credentials=creds)
 
     query = f"newer_than:{days}d"
-    response = client.list_messages(q=query, label_ids=["INBOX"], max_results=500)
-    messages = response.get("messages", [])
+    messages = []
+    page_token = None
+    while True:
+        response = client.list_messages(
+            q=query,
+            label_ids=["INBOX"],
+            max_results=500,
+            page_token=page_token,
+        )
+        messages.extend(response.get("messages", []))
+        page_token = response.get("nextPageToken")
+        if not page_token:
+            break
     fetched = len(messages)
     upserted = 0
     errors = 0
@@ -100,6 +111,7 @@ def full_sync_inbox(
                 "snippet": insert_stmt.excluded.snippet,
                 "from_email": insert_stmt.excluded.from_email,
                 "to_emails": insert_stmt.excluded.to_emails,
+                "cc_emails": insert_stmt.excluded.cc_emails,
                 "label_ids": insert_stmt.excluded.label_ids,
                 "ingest_status": insert_stmt.excluded.ingest_status,
                 "ingest_error": insert_stmt.excluded.ingest_error,
@@ -134,6 +146,7 @@ def full_sync_inbox(
                     "snippet": snippet,
                     "from_email": parsed.from_email,
                     "to_emails": parsed.to_emails,
+                    "cc_emails": parsed.cc_emails,
                     "label_ids": label_ids,
                     "raw_payload": None,
                     "ingest_status": "INGESTED",
@@ -150,6 +163,8 @@ def full_sync_inbox(
             ).scalar_one_or_none()
             if email_row:
                 for attachment in parsed.attachments:
+                    if not attachment.attachment_id:
+                        continue
                     _upsert_attachment(
                         db,
                         {
@@ -162,17 +177,22 @@ def full_sync_inbox(
                             "extraction_status": "NOT_PROCESSED",
                         },
                     )
+            db.commit()
         except Exception as exc:
+            db.rollback()
             errors += 1
-            upsert_email(
-                {
-                    "user_id": user_id,
-                    "gmail_message_id": message_id,
-                    "ingest_status": "ERROR",
-                    "ingest_error": str(exc),
-                },
-                error=True,
-            )
+            try:
+                upsert_email(
+                    {
+                        "user_id": user_id,
+                        "gmail_message_id": message_id,
+                        "ingest_status": "ERROR",
+                        "ingest_error": str(exc),
+                    },
+                    error=True,
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
 
-    db.commit()
     return SyncResult(fetched=fetched, upserted=upserted, errors=errors)

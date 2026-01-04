@@ -32,6 +32,7 @@ export type AttachmentSummary = {
 
 export type EmailDetail = EmailSummary & {
   to_emails: string[] | null;
+  cc_emails: string[] | null;
   clean_body_text: string | null;
   attachments: AttachmentSummary[];
   summary_bullets: string[];

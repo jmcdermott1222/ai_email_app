@@ -138,6 +138,10 @@ def create_gmail_draft(
 
     subject = draft.subject or _default_reply_subject(email.subject)
     body = draft.body or ""
+    if draft.subject is None:
+        draft.subject = subject
+    if draft.body is None:
+        draft.body = body
     raw_mime = build_reply_mime(
         to_address=to_address,
         cc_addresses=reply_headers.get("cc_addresses"),

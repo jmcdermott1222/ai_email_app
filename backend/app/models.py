@@ -122,6 +122,7 @@ class Email(Base, TimestampMixin):
     snippet: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_email: Mapped[str | None] = mapped_column(String(320), nullable=True)
     to_emails: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
+    cc_emails: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
     label_ids: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
     raw_payload: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
     ingest_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
