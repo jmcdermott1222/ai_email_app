@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from googleapiclient.errors import HttpError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -36,7 +37,10 @@ def ensure_copilot_labels(
 
     creds = build_credentials(db, token_row, settings, crypto).credentials
     client = GmailClient(credentials=creds)
-    label_payload = client.list_labels()
+    try:
+        label_payload = client.list_labels()
+    except HttpError as exc:
+        raise ValueError(f"Gmail API error: {exc}") from exc
     existing_labels = {
         label["name"]: label["id"] for label in label_payload.get("labels", [])
     }

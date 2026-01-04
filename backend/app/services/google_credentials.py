@@ -59,7 +59,10 @@ def build_credentials(
         scopes=token_row.scopes or GOOGLE_OAUTH_SCOPES,
     )
     if token_row.expiry_at:
-        creds.expiry = token_row.expiry_at
+        expiry = token_row.expiry_at
+        if expiry.tzinfo is not None:
+            expiry = expiry.astimezone(UTC).replace(tzinfo=None)
+        creds.expiry = expiry
 
     refreshed = False
     if not creds.valid:
@@ -78,7 +81,10 @@ def build_credentials(
 
     if refreshed and creds.token:
         token_row.access_token_enc = crypto.encrypt(creds.token)
-        token_row.expiry_at = creds.expiry
+        expiry = creds.expiry
+        if expiry and expiry.tzinfo is None:
+            expiry = expiry.replace(tzinfo=UTC)
+        token_row.expiry_at = expiry
         token_row.token_status = TOKEN_STATUS_OK
         token_row.last_error = None
         token_row.updated_at = datetime.now(UTC)

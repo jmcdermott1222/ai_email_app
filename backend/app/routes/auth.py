@@ -166,7 +166,7 @@ def google_oauth_callback(
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create Copilot labels",
+            detail=f"Failed to create Copilot labels: {exc}",
         ) from exc
 
     session_token = create_session_token(user, settings)
