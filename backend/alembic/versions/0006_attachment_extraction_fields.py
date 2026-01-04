@@ -18,9 +18,13 @@ depends_on = None
 
 def upgrade() -> None:
     op.add_column(
-        "attachments", sa.Column("extraction_status", sa.String(length=50), nullable=True)
+        "attachments",
+        sa.Column("extraction_status", sa.String(length=50), nullable=True),
     )
-    op.add_column("attachments", sa.Column("sha256", sa.String(length=64), nullable=True))
+    op.add_column(
+        "attachments",
+        sa.Column("sha256", sa.String(length=64), nullable=True),
+    )
 
 
 def downgrade() -> None:

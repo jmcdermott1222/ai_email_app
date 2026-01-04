@@ -17,7 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("emails", sa.Column("ingest_status", sa.String(length=50), nullable=True))
+    op.add_column(
+        "emails",
+        sa.Column("ingest_status", sa.String(length=50), nullable=True),
+    )
     op.add_column("emails", sa.Column("ingest_error", sa.Text(), nullable=True))
 
 

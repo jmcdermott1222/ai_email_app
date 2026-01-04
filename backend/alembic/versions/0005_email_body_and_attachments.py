@@ -19,7 +19,8 @@ depends_on = None
 def upgrade() -> None:
     op.add_column("emails", sa.Column("clean_body_text", sa.Text(), nullable=True))
     op.add_column(
-        "attachments", sa.Column("gmail_attachment_id", sa.String(length=255), nullable=True)
+        "attachments",
+        sa.Column("gmail_attachment_id", sa.String(length=255), nullable=True),
     )
     op.create_unique_constraint(
         "ux_attachments_email_gmail_id",

@@ -17,7 +17,10 @@ from app.services.email_parser import parse_message
 from app.services.gmail_client import GmailClient
 from app.services.google_credentials import build_credentials
 from app.services.llm_client import LLMClient
-from app.services.llm_schemas import DRAFT_PROPOSAL_SCHEMA, DRAFT_PROPOSAL_SCHEMA_VERSION
+from app.services.llm_schemas import (
+    DRAFT_PROPOSAL_SCHEMA,
+    DRAFT_PROPOSAL_SCHEMA_VERSION,
+)
 from app.services.style_profile import build_style_profile
 
 PROMPT_VERSION = "v1"
@@ -183,16 +186,28 @@ def _base64url_encode(raw: bytes) -> str:
 
 def _build_thread_context(client: GmailClient, email: Email) -> str:
     if not email.gmail_thread_id:
-        return _format_single_message(email.subject, email.from_email, email.clean_body_text)
+        return _format_single_message(
+            email.subject,
+            email.from_email,
+            email.clean_body_text,
+        )
 
     try:
         thread = client.get_thread(email.gmail_thread_id, format="full")
     except Exception:
-        return _format_single_message(email.subject, email.from_email, email.clean_body_text)
+        return _format_single_message(
+            email.subject,
+            email.from_email,
+            email.clean_body_text,
+        )
 
     messages = thread.get("messages", []) or []
     if not messages:
-        return _format_single_message(email.subject, email.from_email, email.clean_body_text)
+        return _format_single_message(
+            email.subject,
+            email.from_email,
+            email.clean_body_text,
+        )
 
     def parse_internal_date(message: dict) -> int:
         try:

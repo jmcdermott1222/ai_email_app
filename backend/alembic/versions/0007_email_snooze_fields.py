@@ -17,10 +17,18 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column("emails", sa.Column("snooze_until_ts", sa.DateTime(timezone=True), nullable=True))
     op.add_column(
         "emails",
-        sa.Column("is_snoozed", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column("snooze_until_ts", sa.DateTime(timezone=True), nullable=True),
+    )
+    op.add_column(
+        "emails",
+        sa.Column(
+            "is_snoozed",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
     )
 
 

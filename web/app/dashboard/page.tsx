@@ -51,9 +51,7 @@ export default async function DashboardPage() {
               <div className="email-meta">
                 <span className="email-from">{email.from_email ?? 'Unknown sender'}</span>
                 <span className="email-date">
-                  {email.internal_date_ts
-                    ? new Date(email.internal_date_ts).toLocaleString()
-                    : ''}
+                  {email.internal_date_ts ? new Date(email.internal_date_ts).toLocaleString() : ''}
                 </span>
               </div>
               <a className="email-subject" href={`/dashboard/${email.id}`}>

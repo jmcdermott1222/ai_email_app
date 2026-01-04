@@ -106,9 +106,7 @@ export default function FeedbackControls({
             />
           </div>
           <div className="feedback-row checkbox-row">
-            <label htmlFor={`feedback-ignore-sender-${emailId}`}>
-              Always ignore sender
-            </label>
+            <label htmlFor={`feedback-ignore-sender-${emailId}`}>Always ignore sender</label>
             <input
               id={`feedback-ignore-sender-${emailId}`}
               type="checkbox"
@@ -117,9 +115,7 @@ export default function FeedbackControls({
             />
           </div>
           <div className="feedback-row">
-            <label htmlFor={`feedback-ignore-keyword-${emailId}`}>
-              Always ignore keyword
-            </label>
+            <label htmlFor={`feedback-ignore-keyword-${emailId}`}>Always ignore keyword</label>
             <input
               id={`feedback-ignore-keyword-${emailId}`}
               value={alwaysIgnoreKeyword}
