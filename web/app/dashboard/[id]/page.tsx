@@ -42,6 +42,19 @@ export default function EmailDetailPage() {
     }
   };
 
+  const handleRunTriage = async () => {
+    if (!emailId) return;
+    setStatus(null);
+    try {
+      await apiFetch(`/api/emails/${emailId}/triage`, { method: 'POST' });
+      const refreshed = await apiFetch<EmailDetail>(`/api/emails/${emailId}`);
+      setEmail(refreshed);
+      setStatus('Triage complete.');
+    } catch {
+      setStatus('Triage failed.');
+    }
+  };
+
   if (!email) {
     return (
       <div className="card">
@@ -56,6 +69,23 @@ export default function EmailDetailPage() {
     <div className="card">
       <h3>{email.subject ?? '(No subject)'}</h3>
       <p>From: {email.from_email ?? 'Unknown sender'}</p>
+      {email.importance_label ? (
+        <div className="triage-panel">
+          <p>Importance: {email.importance_label}</p>
+          {email.why_important ? <p>{email.why_important}</p> : null}
+          {email.summary_bullets.length > 0 ? (
+            <ul>
+              {email.summary_bullets.map((bullet) => (
+                <li key={bullet}>{bullet}</li>
+              ))}
+            </ul>
+          ) : null}
+        </div>
+      ) : (
+        <button className="button" type="button" onClick={handleRunTriage}>
+          Run triage
+        </button>
+      )}
       <p>{email.clean_body_text ?? ''}</p>
       <div className="attachments">
         <div className="attachments-header">

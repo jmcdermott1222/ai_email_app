@@ -39,6 +39,8 @@ class Settings(BaseSettings):
     session_cookie_name: str = Field(default="session")
     session_cookie_secure: bool = Field(default=False)
     session_ttl_days: int = Field(default=7)
+    openai_api_key: str = Field(default="")
+    openai_model: str = Field(default="gpt-5.2")
 
     def resolved_database_url(self) -> str:
         """Return a SQLAlchemy-compatible database URL."""

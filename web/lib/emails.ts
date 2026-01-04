@@ -9,6 +9,9 @@ export type EmailSummary = {
   snippet: string | null;
   from_email: string | null;
   label_ids: string[] | null;
+  importance_label?: string | null;
+  needs_response?: boolean | null;
+  why_important?: string | null;
 };
 
 export async function getEmailsServer(cookieHeader: string): Promise<EmailSummary[]> {
@@ -28,6 +31,8 @@ export type EmailDetail = EmailSummary & {
   to_emails: string[] | null;
   clean_body_text: string | null;
   attachments: AttachmentSummary[];
+  summary_bullets: string[];
+  why_important?: string | null;
 };
 
 export async function getEmailDetailServer(

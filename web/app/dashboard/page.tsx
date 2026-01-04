@@ -59,6 +59,12 @@ export default async function DashboardPage() {
                 {email.subject ?? '(No subject)'}
               </a>
               <div className="email-snippet">{email.snippet ?? ''}</div>
+              {email.importance_label ? (
+                <div className="email-triage">
+                  <span>{email.importance_label}</span>
+                  {email.why_important ? <span>{email.why_important}</span> : null}
+                </div>
+              ) : null}
             </div>
           ))
         )}

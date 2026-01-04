@@ -80,6 +80,7 @@ make web-dev
 - Manual Gmail sync (requires session cookie): `POST http://localhost:8000/api/sync/full`
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
+- Triage (requires session cookie): `POST http://localhost:8000/api/emails/{id}/triage`
 
 ## Common Commands
 

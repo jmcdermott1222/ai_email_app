@@ -125,6 +125,14 @@ select {
   font-size: 0.9rem;
 }
 
+.email-triage {
+  margin-top: 0.4rem;
+  display: flex;
+  gap: 0.75rem;
+  font-size: 0.85rem;
+  color: #94a3b8;
+}
+
 .attachments {
   margin-top: 1.5rem;
 }
@@ -143,6 +151,14 @@ select {
   padding: 0.75rem 0;
   border-bottom: 1px solid #1f2937;
   font-size: 0.9rem;
+}
+
+.triage-panel {
+  margin: 1rem 0;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b1120;
 }
 
 a {

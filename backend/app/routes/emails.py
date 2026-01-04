@@ -30,7 +30,21 @@ def list_emails(
         .offset(offset)
     )
     result = db.execute(query)
-    return [EmailRead.model_validate(row) for row in result.scalars().all()]
+    emails = []
+    for email in result.scalars().all():
+        triage = email.triage
+        why_important = None
+        if triage and triage.reasoning:
+            why_important = triage.reasoning.get("why_important")
+        emails.append(
+            EmailRead(
+                **EmailRead.model_validate(email).model_dump(),
+                importance_label=triage.importance_label if triage else None,
+                needs_response=triage.needs_response if triage else None,
+                why_important=why_important,
+            )
+        )
+    return emails
 
 
 @router.get("/emails/{email_id}", response_model=EmailDetail)
@@ -45,8 +59,18 @@ def get_email(
             status_code=status.HTTP_404_NOT_FOUND, detail="Email not found"
         )
     attachments = [AttachmentRead.model_validate(item) for item in email.attachments]
+    triage = email.triage
+    summary_bullets = []
+    why_important = None
+    if triage and triage.reasoning:
+        summary_bullets = triage.reasoning.get("summary_bullets", [])
+        why_important = triage.reasoning.get("why_important")
     data = EmailDetail.model_validate(email)
     return EmailDetail(
         **data.model_dump(),
         attachments=attachments,
+        importance_label=triage.importance_label if triage else None,
+        needs_response=triage.needs_response if triage else None,
+        why_important=why_important,
+        summary_bullets=summary_bullets,
     )

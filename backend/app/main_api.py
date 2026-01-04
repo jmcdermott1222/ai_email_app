@@ -11,6 +11,7 @@ from app.routes.emails import router as emails_router
 from app.routes.integrations import router as integrations_router
 from app.routes.preferences import router as preferences_router
 from app.routes.sync import router as sync_router
+from app.routes.triage import router as triage_router
 
 settings = get_settings()
 
@@ -21,6 +22,7 @@ app.include_router(emails_router)
 app.include_router(integrations_router)
 app.include_router(preferences_router)
 app.include_router(sync_router)
+app.include_router(triage_router)
 
 
 @app.get("/health")

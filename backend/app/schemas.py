@@ -37,6 +37,9 @@ class EmailRead(APIModel):
     snippet: str | None = None
     from_email: str | None = None
     label_ids: list[str] | None = None
+    importance_label: str | None = None
+    needs_response: bool | None = None
+    why_important: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -56,6 +59,10 @@ class EmailDetail(APIModel):
     ingest_error: str | None = None
     clean_body_text: str | None = None
     attachments: list["AttachmentRead"] = []
+    importance_label: str | None = None
+    needs_response: bool | None = None
+    why_important: str | None = None
+    summary_bullets: list[str] = []
     created_at: datetime
     updated_at: datetime
 
@@ -67,6 +74,13 @@ class AttachmentRead(APIModel):
     size_bytes: int | None = None
     gmail_attachment_id: str | None = None
     extraction_status: str | None = None
+
+
+class EmailTriageResponse(APIModel):
+    importance_label: str | None = None
+    needs_response: bool
+    summary_bullets: list[str]
+    why_important: str | None = None
 
 
 EmailDetail.model_rebuild()
