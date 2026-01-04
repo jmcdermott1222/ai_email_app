@@ -35,6 +35,25 @@ class EmailRead(APIModel):
     internal_date_ts: datetime | None = None
     subject: str | None = None
     snippet: str | None = None
+    from_email: str | None = None
+    label_ids: list[str] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class EmailDetail(APIModel):
+    id: int
+    user_id: int
+    gmail_message_id: str
+    gmail_thread_id: str | None = None
+    internal_date_ts: datetime | None = None
+    subject: str | None = None
+    snippet: str | None = None
+    from_email: str | None = None
+    to_emails: list[str] | None = None
+    label_ids: list[str] | None = None
+    ingest_status: str | None = None
+    ingest_error: str | None = None
     created_at: datetime
     updated_at: datetime
 

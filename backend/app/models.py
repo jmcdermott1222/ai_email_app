@@ -124,6 +124,8 @@ class Email(Base, TimestampMixin):
     to_emails: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
     label_ids: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
     raw_payload: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
+    ingest_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    ingest_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="emails")
     attachments: Mapped[list[Attachment]] = relationship(back_populates="email")

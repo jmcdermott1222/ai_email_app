@@ -77,6 +77,8 @@ make web-dev
 - Callback: `http://localhost:8000/auth/google/callback`
 - Integration status (requires session cookie): `http://localhost:8000/api/integrations/google/status`
 - Preferences (requires session cookie): `http://localhost:8000/api/preferences`
+- Manual Gmail sync (requires session cookie): `POST http://localhost:8000/api/sync/full`
+- Emails (requires session cookie): `http://localhost:8000/api/emails`
 
 ## Common Commands
 
