@@ -127,6 +127,11 @@ class DraftRead(APIModel):
     updated_at: datetime
 
 
+class DraftCreateRequest(APIModel):
+    subject: str | None = None
+    body: str | None = None
+
+
 class UserPreferencesRead(APIModel):
     id: int
     user_id: int

@@ -27,6 +27,8 @@ Fill in the OAuth and security values in `.env`:
 - `DATABASE_URL` (optional override)
 - `WEB_BASE_URL` (default: `http://localhost:3000`)
 - `API_BASE_URL` (default: `http://localhost:8000`)
+- `OPENAI_API_KEY` (required for triage and drafts)
+- `OPENAI_MODEL` (optional override, default: `gpt-5.2`)
 
 2. Start Postgres:
 
@@ -85,6 +87,9 @@ make web-dev
 - Manual actions (requires session cookie): `POST http://localhost:8000/api/emails/{id}/actions`
 - Automation run (requires session cookie): `POST http://localhost:8000/api/automation/run_for_email/{id}`
 - Audit log (requires session cookie): `GET http://localhost:8000/api/audit`
+- Propose draft (requires session cookie): `POST http://localhost:8000/api/emails/{id}/draft/propose`
+- Create Gmail draft (requires session cookie): `POST http://localhost:8000/api/drafts/{id}/create_in_gmail`
+- List drafts (requires session cookie): `GET http://localhost:8000/api/drafts?email_id={id}`
 - Snooze sweep (worker): `POST http://localhost:8001/internal/jobs/snooze_sweep`
 
 ## Common Commands

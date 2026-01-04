@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { apiFetch } from '../../../lib/api';
+import { Draft, getDrafts } from '../../../lib/drafts';
 import { AttachmentSummary, EmailDetail } from '../../../lib/emails';
 import FeedbackControls from '../../components/feedback-controls';
 
@@ -14,6 +15,10 @@ export default function EmailDetailPage() {
   const [email, setEmail] = useState<EmailDetail | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [snoozeUntil, setSnoozeUntil] = useState('');
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [draftSubject, setDraftSubject] = useState('');
+  const [draftBody, setDraftBody] = useState('');
+  const [draftStatus, setDraftStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!emailId) return;
@@ -30,6 +35,20 @@ export default function EmailDetailPage() {
         setStatus('Failed to load email.');
       });
   }, [emailId, router]);
+
+  useEffect(() => {
+    if (!emailId) return;
+    getDrafts(emailId)
+      .then((drafts) => {
+        const latest = drafts[0] ?? null;
+        setDraft(latest);
+        setDraftSubject(latest?.subject ?? '');
+        setDraftBody(latest?.body ?? '');
+      })
+      .catch(() => {
+        setDraftStatus('Failed to load drafts.');
+      });
+  }, [emailId]);
 
   const handleProcessAttachments = async () => {
     if (!emailId) return;
@@ -95,6 +114,37 @@ export default function EmailDetailPage() {
     }
   };
 
+  const handleProposeDraft = async () => {
+    if (!emailId) return;
+    setDraftStatus(null);
+    try {
+      const proposed = await apiFetch<Draft>(`/api/emails/${emailId}/draft/propose`, {
+        method: 'POST',
+      });
+      setDraft(proposed);
+      setDraftSubject(proposed.subject ?? '');
+      setDraftBody(proposed.body ?? '');
+      setDraftStatus('Draft proposed.');
+    } catch {
+      setDraftStatus('Draft proposal failed.');
+    }
+  };
+
+  const handleCreateGmailDraft = async () => {
+    if (!draft) return;
+    setDraftStatus(null);
+    try {
+      const created = await apiFetch<Draft>(`/api/drafts/${draft.id}/create_in_gmail`, {
+        method: 'POST',
+        body: JSON.stringify({ subject: draftSubject, body: draftBody }),
+      });
+      setDraft(created);
+      setDraftStatus('Draft created in Gmail.');
+    } catch {
+      setDraftStatus('Failed to create Gmail draft.');
+    }
+  };
+
   if (!email) {
     return (
       <div className="card">
@@ -147,6 +197,54 @@ export default function EmailDetailPage() {
       )}
       <p>{email.clean_body_text ?? ''}</p>
       <FeedbackControls emailId={email.id} />
+      <div className="draft-panel">
+        <div className="draft-header">
+          <h4>Draft reply</h4>
+          <button className="button" type="button" onClick={handleProposeDraft}>
+            {draft ? 'Regenerate draft' : 'Propose draft'}
+          </button>
+        </div>
+        {draft ? (
+          <div className="draft-form">
+            <div className="form-row">
+              <label htmlFor="draft-subject">Subject</label>
+              <input
+                id="draft-subject"
+                type="text"
+                value={draftSubject}
+                onChange={(event) => setDraftSubject(event.target.value)}
+              />
+            </div>
+            <div className="form-row">
+              <label htmlFor="draft-body">Body</label>
+              <textarea
+                id="draft-body"
+                rows={8}
+                value={draftBody}
+                onChange={(event) => setDraftBody(event.target.value)}
+              />
+            </div>
+            <div className="action-row">
+              <button className="button" type="button" onClick={handleCreateGmailDraft}>
+                Create Gmail draft
+              </button>
+              {draft.gmail_draft_id ? (
+                <a
+                  className="button button-muted"
+                  href={`https://mail.google.com/mail/u/0/#drafts?compose=${draft.gmail_draft_id}`}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  Open in Gmail
+                </a>
+              ) : null}
+            </div>
+          </div>
+        ) : (
+          <p>No draft yet.</p>
+        )}
+        {draftStatus ? <p>{draftStatus}</p> : null}
+      </div>
       <div className="attachments">
         <div className="attachments-header">
           <h4>Attachments</h4>

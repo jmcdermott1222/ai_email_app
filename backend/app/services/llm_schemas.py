@@ -4,6 +4,7 @@ EMAIL_TRIAGE_SCHEMA_VERSION = "v1"
 EMAIL_SUMMARY_SCHEMA_VERSION = "v1"
 CALENDAR_CANDIDATE_SCHEMA_VERSION = "v1"
 DRAFT_PROPOSAL_SCHEMA_VERSION = "v1"
+STYLE_PROFILE_SCHEMA_VERSION = "v1"
 
 EMAIL_TRIAGE_RESULT_SCHEMA = {
     "type": "object",
@@ -62,4 +63,29 @@ DRAFT_PROPOSAL_SCHEMA = {
         "body": {"type": "string"},
     },
     "required": ["subject", "body"],
+}
+
+STYLE_PROFILE_SCHEMA = {
+    "type": "object",
+    "additionalProperties": False,
+    "properties": {
+        "tone": {"type": "string"},
+        "formality": {"type": "string"},
+        "greetings": {"type": "array", "items": {"type": "string"}},
+        "signoffs": {"type": "array", "items": {"type": "string"}},
+        "typical_length": {"type": "string"},
+        "voice_traits": {"type": "array", "items": {"type": "string"}},
+        "do": {"type": "array", "items": {"type": "string"}},
+        "dont": {"type": "array", "items": {"type": "string"}},
+    },
+    "required": [
+        "tone",
+        "formality",
+        "greetings",
+        "signoffs",
+        "typical_length",
+        "voice_traits",
+        "do",
+        "dont",
+    ],
 }
