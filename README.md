@@ -17,6 +17,17 @@ It includes a FastAPI backend (API + worker) and a Next.js web frontend.
 cp .env.example .env
 ```
 
+Fill in the OAuth and security values in `.env`:
+
+- `GOOGLE_OAUTH_CLIENT_ID`
+- `GOOGLE_OAUTH_CLIENT_SECRET`
+- `GOOGLE_OAUTH_REDIRECT_URI` (default: `http://localhost:8000/auth/google/callback`)
+- `SESSION_JWT_SECRET`
+- `ENCRYPTION_KEY` (Fernet base64 key, generate with `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`)
+- `DATABASE_URL` (optional override)
+- `WEB_BASE_URL` (default: `http://localhost:3000`)
+- `API_BASE_URL` (default: `http://localhost:8000`)
+
 2. Start Postgres:
 
 ```bash
@@ -57,6 +68,14 @@ make web-dev
 ```
 
 - Web: http://localhost:3000
+- Login: http://localhost:3000/login
+- Dashboard: http://localhost:3000/dashboard
+
+### Google OAuth Flow
+
+- Start OAuth: `http://localhost:8000/auth/google/start`
+- Callback: `http://localhost:8000/auth/google/callback`
+- Integration status (requires session cookie): `http://localhost:8000/api/integrations/google/status`
 
 ## Common Commands
 

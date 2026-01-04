@@ -28,7 +28,7 @@ target_metadata = Base.metadata
 
 def get_url() -> str:
     """Return the database URL from application settings."""
-    return settings.database_url
+    return settings.resolved_database_url()
 
 
 config.set_main_option("sqlalchemy.url", get_url())

@@ -67,3 +67,10 @@ class UserPreferencesRead(APIModel):
     preferences: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class GoogleIntegrationStatus(APIModel):
+    connected: bool
+    token_status: str | None = None
+    needs_reauth: bool
+    last_error: str | None = None

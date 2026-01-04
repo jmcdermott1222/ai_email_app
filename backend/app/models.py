@@ -10,6 +10,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     func,
@@ -67,13 +68,15 @@ class GoogleOAuthToken(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
-    access_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
-    refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    access_token_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
+    refresh_token_enc: Mapped[bytes | None] = mapped_column(LargeBinary, nullable=True)
     token_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     expiry_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    scopes: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
+    scopes: Mapped[list[str] | None] = mapped_column(JSONBType, nullable=True)
+    token_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="oauth_tokens")
 
