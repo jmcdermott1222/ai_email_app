@@ -70,6 +70,47 @@ def test_execute_actions_snooze():
         assert client.calls[0][0] == "modify"
 
 
+def test_execute_actions_mark_read():
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+
+    settings = Settings(
+        google_oauth_client_id="client",
+        google_oauth_client_secret="secret",
+        encryption_key="unused",
+    )
+    crypto = LocalDevCrypto("BB0iMhzIaIMZeMACaGkNykzlCaM3Ndoth7-vBeQiJ4U=")
+
+    with SessionLocal() as session:
+        user = User(email="user@example.com", google_sub="sub-1")
+        session.add(user)
+        session.flush()
+        email = Email(
+            user_id=user.id,
+            gmail_message_id="msg-2",
+            label_ids=["INBOX", "UNREAD"],
+        )
+        session.add(email)
+        session.commit()
+
+        client = FakeGmailClient()
+        result = execute_actions(
+            session,
+            settings,
+            crypto,
+            user.id,
+            email.id,
+            ["MARK_READ"],
+            client=client,
+        )
+
+        updated = session.get(Email, email.id)
+        assert "MARK_READ" in result.applied
+        assert updated.label_ids == ["INBOX"]
+        assert client.calls[0] == ("modify", "msg-2", (), ("UNREAD",))
+
+
 def test_run_automation_suggest_only():
     engine = create_engine("sqlite+pysqlite:///:memory:")
     SessionLocal = sessionmaker(bind=engine)

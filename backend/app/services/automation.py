@@ -103,6 +103,17 @@ def execute_actions(
                     email.gmail_message_id, add_label_ids=[], remove_label_ids=["INBOX"]
                 )
                 applied.append(action)
+            elif action == "MARK_READ":
+                client.modify_message_labels(
+                    email.gmail_message_id,
+                    add_label_ids=[],
+                    remove_label_ids=["UNREAD"],
+                )
+                if email.label_ids:
+                    email.label_ids = [
+                        label for label in email.label_ids if label != "UNREAD"
+                    ]
+                applied.append(action)
             elif action == "TRASH":
                 client.trash_message(email.gmail_message_id)
                 applied.append(action)

@@ -574,7 +574,22 @@ export default function EmailDetailPage() {
                 <p className="section-desc">Organize this email quickly.</p>
               </div>
             </div>
+            <p className="helper-text">
+              Snooze removes the message from your inbox and returns it at the selected time.
+            </p>
+            <p className="helper-text">
+              Run automation applies suggested labels or archive/trash based on your automation
+              level. In suggest-only mode, it won&apos;t make changes.
+            </p>
             <div className="action-row">
+              <button
+                className="button button-muted"
+                type="button"
+                onClick={() => handleAction('MARK_READ')}
+                title="Mark this email as read in Gmail"
+              >
+                Mark as read
+              </button>
               <button
                 className="button"
                 type="button"
@@ -595,7 +610,7 @@ export default function EmailDetailPage() {
                 type="datetime-local"
                 value={snoozeUntil}
                 onChange={(event) => setSnoozeUntil(event.target.value)}
-                title="Snooze until a specific time"
+                title="Choose when to bring this email back to your inbox"
               />
               <button
                 className="button button-muted"
@@ -609,7 +624,7 @@ export default function EmailDetailPage() {
                 className="button"
                 type="button"
                 onClick={handleRunAutomation}
-                title="Run suggested automations for this email"
+                title="Apply the suggested actions for this email"
               >
                 Run automation
               </button>
