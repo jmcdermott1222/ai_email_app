@@ -1,6 +1,7 @@
 """Public API application entrypoint."""
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.auth import AuthError, authenticate_request
@@ -22,6 +23,18 @@ from app.routes.triage import router as triage_router
 settings = get_settings()
 
 app = FastAPI(title=settings.app_name)
+allowed_origins = {
+    settings.web_base_url,
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=sorted(origin for origin in allowed_origins if origin),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 app.include_router(auth_router)
 app.include_router(actions_router)
 app.include_router(alerts_router)
@@ -45,6 +58,8 @@ async def health_check() -> dict:
 
 @app.middleware("http")
 async def require_session_cookie(request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if request.url.path.startswith("/api/"):
         try:
             authenticate_request(request, settings)
