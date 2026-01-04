@@ -36,14 +36,15 @@ def list_emails(
         why_important = None
         if triage and triage.reasoning:
             why_important = triage.reasoning.get("why_important")
-        emails.append(
-            EmailRead(
-                **EmailRead.model_validate(email).model_dump(),
-                importance_label=triage.importance_label if triage else None,
-                needs_response=triage.needs_response if triage else None,
-                why_important=why_important,
-            )
+        payload = EmailRead.model_validate(email).model_dump()
+        payload.update(
+            {
+                "importance_label": triage.importance_label if triage else None,
+                "needs_response": triage.needs_response if triage else None,
+                "why_important": why_important,
+            }
         )
+        emails.append(EmailRead(**payload))
     return emails
 
 
@@ -65,12 +66,14 @@ def get_email(
     if triage and triage.reasoning:
         summary_bullets = triage.reasoning.get("summary_bullets", [])
         why_important = triage.reasoning.get("why_important")
-    data = EmailDetail.model_validate(email)
-    return EmailDetail(
-        **data.model_dump(),
-        attachments=attachments,
-        importance_label=triage.importance_label if triage else None,
-        needs_response=triage.needs_response if triage else None,
-        why_important=why_important,
-        summary_bullets=summary_bullets,
+    payload = EmailDetail.model_validate(email).model_dump()
+    payload.update(
+        {
+            "attachments": attachments,
+            "importance_label": triage.importance_label if triage else None,
+            "needs_response": triage.needs_response if triage else None,
+            "why_important": why_important,
+            "summary_bullets": summary_bullets,
+        }
     )
+    return EmailDetail(**payload)
