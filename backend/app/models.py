@@ -30,7 +30,10 @@ class TimestampMixin:
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
     )
 
 
@@ -41,16 +44,18 @@ class User(Base, TimestampMixin):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     email: Mapped[str] = mapped_column(String(320), unique=True, nullable=False)
-    google_sub: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    google_sub: Mapped[str | None] = mapped_column(
+        String(255), unique=True, nullable=True
+    )
 
-    oauth_tokens: Mapped["GoogleOAuthToken"] = relationship(
+    oauth_tokens: Mapped[GoogleOAuthToken] = relationship(
         back_populates="user", uselist=False
     )
-    sync_state: Mapped["GmailSyncState"] = relationship(
+    sync_state: Mapped[GmailSyncState] = relationship(
         back_populates="user", uselist=False
     )
-    emails: Mapped[list["Email"]] = relationship(back_populates="user")
-    preferences: Mapped["UserPreferences"] = relationship(
+    emails: Mapped[list[Email]] = relationship(back_populates="user")
+    preferences: Mapped[UserPreferences] = relationship(
         back_populates="user", uselist=False
     )
 
@@ -65,7 +70,9 @@ class GoogleOAuthToken(Base, TimestampMixin):
     access_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
     token_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    expiry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    expiry_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     scopes: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="oauth_tokens")
@@ -114,10 +121,10 @@ class Email(Base, TimestampMixin):
     raw_payload: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="emails")
-    attachments: Mapped[list["Attachment"]] = relationship(back_populates="email")
-    triage: Mapped["EmailTriage"] = relationship(back_populates="email", uselist=False)
-    drafts: Mapped[list["Draft"]] = relationship(back_populates="email")
-    calendar_candidates: Mapped[list["CalendarCandidate"]] = relationship(
+    attachments: Mapped[list[Attachment]] = relationship(back_populates="email")
+    triage: Mapped[EmailTriage] = relationship(back_populates="email", uselist=False)
+    drafts: Mapped[list[Draft]] = relationship(back_populates="email")
+    calendar_candidates: Mapped[list[CalendarCandidate]] = relationship(
         back_populates="email"
     )
 
@@ -197,7 +204,7 @@ class CalendarCandidate(Base, TimestampMixin):
     schema_version: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     email: Mapped[Email] = relationship(back_populates="calendar_candidates")
-    events_created: Mapped[list["CalendarEventCreated"]] = relationship(
+    events_created: Mapped[list[CalendarEventCreated]] = relationship(
         back_populates="candidate"
     )
 
@@ -225,7 +232,9 @@ class UserPreferences(Base, TimestampMixin):
     __tablename__ = "user_preferences"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False, unique=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), nullable=False, unique=True
+    )
     preferences: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="preferences")

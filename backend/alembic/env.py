@@ -6,14 +6,15 @@ import os
 import sys
 from logging.config import fileConfig
 
-from alembic import context
 from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
+from app import models  # noqa: F401
 from app.config import get_settings
 from app.db import Base
-from app import models  # noqa: F401
 
 config = context.config
 

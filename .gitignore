@@ -1,0 +1,13 @@
+.DS_Store
+.env
+
+# Python
+backend/.venv/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+
+# Node / Next.js
+web/node_modules/
+web/.next/

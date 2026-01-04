@@ -5,9 +5,10 @@ Revises:
 Create Date: 2025-02-14 00:00:00.000000
 """
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "0001_initial"
@@ -107,7 +108,9 @@ def upgrade() -> None:
         ),
     )
 
-    op.create_index("ix_emails_user_internal_date", "emails", ["user_id", "internal_date_ts"])
+    op.create_index(
+        "ix_emails_user_internal_date", "emails", ["user_id", "internal_date_ts"]
+    )
     op.create_index(
         "ux_emails_user_message",
         "emails",
@@ -149,7 +152,12 @@ def upgrade() -> None:
         sa.Column("user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False),
         sa.Column("email_id", sa.Integer(), sa.ForeignKey("emails.id"), nullable=False),
         sa.Column("importance_label", sa.String(length=50), nullable=True),
-        sa.Column("needs_response", sa.Boolean(), nullable=False, server_default=sa.false()),
+        sa.Column(
+            "needs_response",
+            sa.Boolean(),
+            nullable=False,
+            server_default=sa.false(),
+        ),
         sa.Column("summary", sa.Text(), nullable=True),
         sa.Column("reasoning", postgresql.JSONB(), nullable=True),
         sa.Column("model_id", sa.String(length=100), nullable=True),
@@ -256,7 +264,11 @@ def upgrade() -> None:
         "user_preferences",
         sa.Column("id", sa.Integer(), primary_key=True),
         sa.Column(
-            "user_id", sa.Integer(), sa.ForeignKey("users.id"), nullable=False, unique=True
+            "user_id",
+            sa.Integer(),
+            sa.ForeignKey("users.id"),
+            nullable=False,
+            unique=True,
         ),
         sa.Column("preferences", postgresql.JSONB(), nullable=True),
         sa.Column(

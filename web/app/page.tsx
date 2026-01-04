@@ -5,8 +5,8 @@ export default function HomePage() {
     <div className="card">
       <h2>Welcome</h2>
       <p>
-        This is the placeholder home page for the AI Email Copilot. Start by signing in
-        with your Google account.
+        This is the placeholder home page for the AI Email Copilot. Start by signing in with your
+        Google account.
       </p>
       <p>
         <Link href="/login">Go to login</Link>
