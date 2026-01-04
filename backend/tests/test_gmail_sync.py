@@ -1,5 +1,6 @@
 """Tests for Gmail sync service."""
 
+import base64
 from datetime import UTC, datetime
 
 from sqlalchemy import create_engine, select
@@ -8,7 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import Settings
 from app.crypto import LocalDevCrypto
 from app.db import Base
-from app.models import Email, GoogleOAuthToken, User
+from app.models import Attachment, Email, GoogleOAuthToken, User
 from app.services.gmail_sync import full_sync_inbox
 
 
@@ -45,6 +46,8 @@ def test_full_sync_inbox_idempotent():
         session.add(token)
         session.commit()
 
+        body_text = "Hello there\n\nThanks,\nAlice"
+        body_data = base64.urlsafe_b64encode(body_text.encode("utf-8")).decode("utf-8")
         message_payload = {
             "id": "msg-1",
             "threadId": "thread-1",
@@ -54,11 +57,20 @@ def test_full_sync_inbox_idempotent():
                 int(datetime(2024, 1, 1, tzinfo=UTC).timestamp() * 1000)
             ),
             "payload": {
+                "mimeType": "multipart/mixed",
                 "headers": [
                     {"name": "From", "value": "Alice <alice@example.com>"},
                     {"name": "To", "value": "Bob <bob@example.com>"},
                     {"name": "Subject", "value": "Test"},
-                ]
+                ],
+                "parts": [
+                    {"mimeType": "text/plain", "body": {"data": body_data}},
+                    {
+                        "filename": "report.pdf",
+                        "mimeType": "application/pdf",
+                        "body": {"attachmentId": "att-1", "size": 1234},
+                    },
+                ],
             },
         }
 
@@ -69,3 +81,8 @@ def test_full_sync_inbox_idempotent():
         emails = session.execute(select(Email)).scalars().all()
         assert len(emails) == 1
         assert emails[0].gmail_message_id == "msg-1"
+        assert emails[0].clean_body_text.startswith("Hello there")
+
+        attachments = session.execute(select(Attachment)).scalars().all()
+        assert len(attachments) == 1
+        assert attachments[0].gmail_attachment_id == "att-1"

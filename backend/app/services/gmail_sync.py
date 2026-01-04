@@ -12,7 +12,8 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.crypto import CryptoProvider
-from app.models import Email, GoogleOAuthToken
+from app.models import Attachment, Email, GoogleOAuthToken
+from app.services.email_parser import parse_message
 from app.services.gmail_client import GmailClient
 from app.services.google_credentials import build_credentials
 
@@ -24,19 +25,6 @@ class SyncResult:
     errors: int
 
 
-def _header_value(headers: list[dict], name: str) -> str | None:
-    for header in headers:
-        if header.get("name", "").lower() == name.lower():
-            return header.get("value")
-    return None
-
-
-def _parse_recipients(raw_value: str | None) -> list[str] | None:
-    if not raw_value:
-        return None
-    return [value.strip() for value in raw_value.split(",") if value.strip()]
-
-
 def _parse_internal_date(internal_date_ms: str | None) -> datetime | None:
     if not internal_date_ms:
         return None
@@ -45,6 +33,25 @@ def _parse_internal_date(internal_date_ms: str | None) -> datetime | None:
     except ValueError:
         return None
     return datetime.fromtimestamp(millis / 1000.0, tz=UTC)
+
+
+def _upsert_attachment(db: Session, values: dict) -> None:
+    dialect = db.bind.dialect.name if db.bind else "postgresql"
+    if dialect == "sqlite":
+        insert_stmt = sqlite_insert(Attachment).values(**values)
+    else:
+        insert_stmt = pg_insert(Attachment).values(**values)
+    db.execute(
+        insert_stmt.on_conflict_do_update(
+            index_elements=["email_id", "gmail_attachment_id"],
+            set_={
+                "filename": insert_stmt.excluded.filename,
+                "mime_type": insert_stmt.excluded.mime_type,
+                "size_bytes": insert_stmt.excluded.size_bytes,
+                "updated_at": datetime.now(UTC),
+            },
+        )
+    )
 
 
 def full_sync_inbox(
@@ -110,11 +117,7 @@ def full_sync_inbox(
             continue
         try:
             full_message = client.get_message(message_id, format="full")
-            payload = full_message.get("payload", {})
-            headers = payload.get("headers", [])
-            from_value = _header_value(headers, "From")
-            to_value = _header_value(headers, "To")
-            subject = _header_value(headers, "Subject")
+            parsed = parse_message(full_message)
             snippet = full_message.get("snippet")
             internal_date = _parse_internal_date(full_message.get("internalDate"))
             thread_id = full_message.get("threadId")
@@ -126,17 +129,37 @@ def full_sync_inbox(
                     "gmail_message_id": message_id,
                     "gmail_thread_id": thread_id,
                     "internal_date_ts": internal_date,
-                    "subject": subject,
+                    "subject": parsed.subject,
                     "snippet": snippet,
-                    "from_email": from_value,
-                    "to_emails": _parse_recipients(to_value),
+                    "from_email": parsed.from_email,
+                    "to_emails": parsed.to_emails,
                     "label_ids": label_ids,
                     "raw_payload": None,
                     "ingest_status": "INGESTED",
                     "ingest_error": None,
+                    "clean_body_text": parsed.clean_body_text,
                 }
             )
             upserted += 1
+            email_row = db.execute(
+                select(Email).where(
+                    Email.user_id == user_id,
+                    Email.gmail_message_id == message_id,
+                )
+            ).scalar_one_or_none()
+            if email_row:
+                for attachment in parsed.attachments:
+                    _upsert_attachment(
+                        db,
+                        {
+                            "user_id": user_id,
+                            "email_id": email_row.id,
+                            "gmail_attachment_id": attachment.attachment_id,
+                            "filename": attachment.filename,
+                            "mime_type": attachment.mime_type,
+                            "size_bytes": attachment.size_estimate,
+                        },
+                    )
         except Exception as exc:
             errors += 1
             upsert_email(

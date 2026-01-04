@@ -1,0 +1,18 @@
+{
+  "id": "msg-plain",
+  "threadId": "thread-plain",
+  "snippet": "Hello world",
+  "internalDate": "1704067200000",
+  "payload": {
+    "mimeType": "text/plain",
+    "headers": [
+      { "name": "From", "value": "Me <me@example.com>" },
+      { "name": "To", "value": "Bob <bob@example.com>" },
+      { "name": "Subject", "value": "Plain email" },
+      { "name": "Date", "value": "Tue, 1 Jan 2024 09:00:00 -0500" }
+    ],
+    "body": {
+      "data": "SGVsbG8gd29ybGQKCk9uIFR1ZSwgSmFuIDEsIDIwMjQgYXQgOTowMCBBTSBCb2IgPGJvYkBleGFtcGxlLmNvbT4gd3JvdGU6Cj4gcXVvdGVkCgpUaGFua3MsCk1l"
+    }
+  }
+}

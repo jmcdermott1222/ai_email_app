@@ -1,0 +1,17 @@
+{
+  "id": "msg-html",
+  "threadId": "thread-html",
+  "snippet": "Hi there",
+  "internalDate": "1704067200000",
+  "payload": {
+    "mimeType": "text/html",
+    "headers": [
+      { "name": "From", "value": "Alice <alice@example.com>" },
+      { "name": "To", "value": "Bob <bob@example.com>" },
+      { "name": "Subject", "value": "HTML email" }
+    ],
+    "body": {
+      "data": "PGh0bWw-PGJvZHk-PHA-SGkgdGhlcmU8L3A-PGJsb2NrcXVvdGU-T24gVHVlLCBzb21lb25lIHdyb3RlOjwvYmxvY2txdW90ZT48L2JvZHk-PC9odG1sPg=="
+    }
+  }
+}

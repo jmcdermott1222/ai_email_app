@@ -1,0 +1,31 @@
+{
+  "id": "msg-multipart",
+  "threadId": "thread-multipart",
+  "snippet": "See attached",
+  "internalDate": "1704067200000",
+  "payload": {
+    "mimeType": "multipart/mixed",
+    "headers": [
+      { "name": "From", "value": "Alice <alice@example.com>" },
+      { "name": "To", "value": "Bob <bob@example.com>" },
+      { "name": "Cc", "value": "Carol <carol@example.com>" },
+      { "name": "Subject", "value": "Attachment email" }
+    ],
+    "parts": [
+      {
+        "mimeType": "text/plain",
+        "body": {
+          "data": "U2VlIGF0dGFjaGVkCgpCZXN0LApBbGljZQ=="
+        }
+      },
+      {
+        "filename": "report.pdf",
+        "mimeType": "application/pdf",
+        "body": {
+          "attachmentId": "att-123",
+          "size": 2048
+        }
+      }
+    ]
+  }
+}

@@ -54,6 +54,7 @@ class EmailDetail(APIModel):
     label_ids: list[str] | None = None
     ingest_status: str | None = None
     ingest_error: str | None = None
+    clean_body_text: str | None = None
     created_at: datetime
     updated_at: datetime
 
