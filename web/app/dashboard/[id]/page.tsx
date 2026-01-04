@@ -4,6 +4,11 @@ import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 
 import { apiFetch } from '../../../lib/api';
+import {
+  CalendarCandidate,
+  getCalendarCandidates,
+  proposeCalendarCandidates,
+} from '../../../lib/calendar';
 import { Draft, getDrafts } from '../../../lib/drafts';
 import { AttachmentSummary, EmailDetail } from '../../../lib/emails';
 import FeedbackControls from '../../components/feedback-controls';
@@ -19,6 +24,8 @@ export default function EmailDetailPage() {
   const [draftSubject, setDraftSubject] = useState('');
   const [draftBody, setDraftBody] = useState('');
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
+  const [calendarCandidates, setCalendarCandidates] = useState<CalendarCandidate[]>([]);
+  const [calendarStatus, setCalendarStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!emailId) return;
@@ -47,6 +54,17 @@ export default function EmailDetailPage() {
       })
       .catch(() => {
         setDraftStatus('Failed to load drafts.');
+      });
+  }, [emailId]);
+
+  useEffect(() => {
+    if (!emailId) return;
+    getCalendarCandidates(emailId)
+      .then((candidates) => {
+        setCalendarCandidates(candidates);
+      })
+      .catch(() => {
+        setCalendarStatus('Failed to load calendar candidates.');
       });
   }, [emailId]);
 
@@ -145,6 +163,22 @@ export default function EmailDetailPage() {
     }
   };
 
+  const handleProposeCalendar = async () => {
+    if (!emailId) return;
+    setCalendarStatus(null);
+    try {
+      const candidates = await proposeCalendarCandidates(emailId);
+      setCalendarCandidates(candidates);
+      setCalendarStatus('Calendar candidates generated.');
+    } catch {
+      setCalendarStatus('Failed to extract calendar candidates.');
+    }
+  };
+
+  const handleCreateEvent = () => {
+    setCalendarStatus('Event creation is not available yet.');
+  };
+
   if (!email) {
     return (
       <div className="card">
@@ -197,6 +231,41 @@ export default function EmailDetailPage() {
       )}
       <p>{email.clean_body_text ?? ''}</p>
       <FeedbackControls emailId={email.id} />
+      <div className="calendar-panel">
+        <div className="calendar-header">
+          <h4>Calendar</h4>
+          <button className="button" type="button" onClick={handleProposeCalendar}>
+            Propose times
+          </button>
+        </div>
+        {calendarCandidates.length === 0 ? (
+          <p>No calendar candidates yet.</p>
+        ) : (
+          calendarCandidates.map((candidate) => {
+            const payload = candidate.payload ?? {};
+            const title = typeof payload.title === 'string' ? payload.title : 'Untitled';
+            const start = typeof payload.start === 'string' ? payload.start : '';
+            const end = typeof payload.end === 'string' ? payload.end : '';
+            const attendees = Array.isArray(payload.attendees) ? payload.attendees.join(', ') : '';
+            return (
+              <div key={candidate.id} className="calendar-row">
+                <div>
+                  <strong>{title}</strong>
+                  <div>
+                    {start ? new Date(start).toLocaleString() : 'Unknown start'} —{' '}
+                    {end ? new Date(end).toLocaleString() : 'Unknown end'}
+                  </div>
+                  {attendees ? <div>Attendees: {attendees}</div> : null}
+                </div>
+                <button className="button button-muted" type="button" onClick={handleCreateEvent}>
+                  Edit & create event
+                </button>
+              </div>
+            );
+          })
+        )}
+        {calendarStatus ? <p>{calendarStatus}</p> : null}
+      </div>
       <div className="draft-panel">
         <div className="draft-header">
           <h4>Draft reply</h4>

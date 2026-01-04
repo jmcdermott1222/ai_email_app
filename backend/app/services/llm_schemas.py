@@ -2,7 +2,7 @@
 
 EMAIL_TRIAGE_SCHEMA_VERSION = "v1"
 EMAIL_SUMMARY_SCHEMA_VERSION = "v1"
-CALENDAR_CANDIDATE_SCHEMA_VERSION = "v1"
+CALENDAR_CANDIDATE_SCHEMA_VERSION = "v2"
 DRAFT_PROPOSAL_SCHEMA_VERSION = "v1"
 STYLE_PROFILE_SCHEMA_VERSION = "v1"
 
@@ -50,7 +50,26 @@ CALENDAR_CANDIDATE_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
     "properties": {
-        "candidates": {"type": "array", "items": {"type": "object"}},
+        "candidates": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "additionalProperties": False,
+                "properties": {
+                    "type": {
+                        "type": "string",
+                        "enum": ["PROPOSED_TIME", "DATE_RANGE", "INVITE"],
+                    },
+                    "title": {"type": "string"},
+                    "start": {"type": "string"},
+                    "end": {"type": "string"},
+                    "attendees": {"type": "array", "items": {"type": "string"}},
+                    "location": {"type": "string"},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                },
+                "required": ["type", "start", "end", "confidence"],
+            },
+        },
     },
     "required": ["candidates"],
 }

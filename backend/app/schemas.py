@@ -106,6 +106,15 @@ class AuditLogRead(APIModel):
 EmailDetail.model_rebuild()
 
 
+class CalendarCandidateRead(APIModel):
+    id: int
+    email_id: int
+    payload: dict[str, Any] | None = None
+    status: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class EmailTriageRead(APIModel):
     id: int
     email_id: int

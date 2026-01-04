@@ -189,6 +189,33 @@ textarea {
   margin-top: 1rem;
 }
 
+.calendar-panel {
+  margin-top: 1.5rem;
+  padding: 1rem;
+  border-radius: 10px;
+  border: 1px solid #1f2937;
+  background: #0b1120;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 1rem;
+}
+
+.calendar-row {
+  margin-top: 0.75rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #1f2937;
+  background: #0f172a;
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+}
+
 .action-row {
   display: flex;
   flex-wrap: wrap;

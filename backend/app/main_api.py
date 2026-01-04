@@ -8,6 +8,7 @@ from app.config import get_settings
 from app.routes.actions import router as actions_router
 from app.routes.attachments import router as attachments_router
 from app.routes.auth import router as auth_router
+from app.routes.calendar import router as calendar_router
 from app.routes.drafts import router as drafts_router
 from app.routes.emails import router as emails_router
 from app.routes.feedback import router as feedback_router
@@ -22,6 +23,7 @@ app = FastAPI(title=settings.app_name)
 app.include_router(auth_router)
 app.include_router(actions_router)
 app.include_router(attachments_router)
+app.include_router(calendar_router)
 app.include_router(drafts_router)
 app.include_router(emails_router)
 app.include_router(feedback_router)
