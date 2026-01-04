@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
+    Date,
     DateTime,
     ForeignKey,
     Index,
@@ -61,6 +62,8 @@ class User(Base, TimestampMixin):
         back_populates="user", uselist=False
     )
     gmail_labels: Mapped[list[UserGmailLabel]] = relationship(back_populates="user")
+    digests: Mapped[list[Digest]] = relationship(back_populates="user")
+    alerts: Mapped[list[Alert]] = relationship(back_populates="user")
 
 
 class GoogleOAuthToken(Base, TimestampMixin):
@@ -140,6 +143,7 @@ class Email(Base, TimestampMixin):
     calendar_candidates: Mapped[list[CalendarCandidate]] = relationship(
         back_populates="email"
     )
+    alerts: Mapped[list[Alert]] = relationship(back_populates="email")
 
 
 class Attachment(Base, TimestampMixin):
@@ -243,6 +247,45 @@ class CalendarEventCreated(Base, TimestampMixin):
     status: Mapped[str | None] = mapped_column(String(50), nullable=True)
 
     candidate: Mapped[CalendarCandidate] = relationship(back_populates="events_created")
+
+
+class Digest(Base, TimestampMixin):
+    """Daily digest records for a user."""
+
+    __tablename__ = "digests"
+    __table_args__ = (
+        Index("ix_digests_user_created", "user_id", "created_at"),
+        Index("ux_digests_user_date", "user_id", "digest_date", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    digest_date: Mapped[date] = mapped_column(Date, nullable=False)
+    content_json: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
+
+    user: Mapped[User] = relationship(back_populates="digests")
+
+
+class Alert(Base, TimestampMixin):
+    """VIP alert records for a user."""
+
+    __tablename__ = "alerts"
+    __table_args__ = (
+        Index("ix_alerts_user_created", "user_id", "created_at"),
+        Index("ix_alerts_user_read", "user_id", "read_at"),
+        Index("ux_alerts_user_email", "user_id", "email_id", unique=True),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    email_id: Mapped[int] = mapped_column(ForeignKey("emails.id"), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    read_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    user: Mapped[User] = relationship(back_populates="alerts")
+    email: Mapped[Email] = relationship(back_populates="alerts")
 
 
 class UserPreferences(Base, TimestampMixin):

@@ -97,6 +97,10 @@ make web-dev
 - Preferences (requires session cookie): `http://localhost:8000/api/preferences`
 - Manual Gmail sync (requires session cookie): `POST http://localhost:8000/api/sync/full`
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
+- Latest digest (requires session cookie): `GET http://localhost:8000/api/digests/latest`
+- Run digest now (requires session cookie): `POST http://localhost:8000/api/digests/run_now`
+- VIP alerts (requires session cookie): `GET http://localhost:8000/api/alerts`
+- Mark alert read (requires session cookie): `POST http://localhost:8000/api/alerts/{id}/mark_read`
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
 - Triage (requires session cookie): `POST http://localhost:8000/api/emails/{id}/triage`
 - Feedback (requires session cookie): `POST http://localhost:8000/api/emails/{id}/feedback`

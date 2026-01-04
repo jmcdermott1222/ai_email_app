@@ -1,6 +1,6 @@
 """Pydantic schemas for API input/output."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
@@ -150,6 +150,29 @@ class CalendarEventCreatedRead(APIModel):
     updated_at: datetime
 
 
+class DigestRead(APIModel):
+    id: int
+    user_id: int
+    digest_date: date | None = None
+    content_json: dict[str, Any] | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class AlertRead(APIModel):
+    id: int
+    user_id: int
+    email_id: int
+    reason: str | None = None
+    read_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+    email_subject: str | None = None
+    email_from: str | None = None
+    email_snippet: str | None = None
+    email_internal_date_ts: datetime | None = None
+
+
 class EmailTriageRead(APIModel):
     id: int
     email_id: int
@@ -198,6 +221,9 @@ class Preferences(APIModel):
     vip_alerts_enabled: bool
     working_hours: WorkingHours
     meeting_default_duration_min: int
+    vip_senders: list[str] | None = None
+    vip_domains: list[str] | None = None
+    vip_keywords: list[str] | None = None
     automation_level: Literal[
         "SUGGEST_ONLY", "AUTO_LABEL", "AUTO_ARCHIVE", "AUTO_TRASH"
     ]
@@ -208,6 +234,9 @@ class PreferencesUpdate(APIModel):
     vip_alerts_enabled: bool | None = None
     working_hours: WorkingHours | None = None
     meeting_default_duration_min: int | None = None
+    vip_senders: list[str] | None = None
+    vip_domains: list[str] | None = None
+    vip_keywords: list[str] | None = None
     automation_level: (
         Literal["SUGGEST_ONLY", "AUTO_LABEL", "AUTO_ARCHIVE", "AUTO_TRASH"] | None
     ) = None

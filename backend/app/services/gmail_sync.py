@@ -16,6 +16,7 @@ from app.models import Attachment, Email, GoogleOAuthToken
 from app.services.email_parser import parse_message
 from app.services.gmail_client import GmailClient
 from app.services.google_credentials import build_credentials
+from app.services.vip_alerts import create_vip_alert_if_needed
 
 
 @dataclass(frozen=True)
@@ -128,6 +129,13 @@ def full_sync_inbox(
         message_id = message.get("id")
         if not message_id:
             continue
+        existing_email = db.execute(
+            select(Email.id).where(
+                Email.user_id == user_id,
+                Email.gmail_message_id == message_id,
+            )
+        ).scalar_one_or_none()
+        is_new = existing_email is None
         try:
             full_message = client.get_message(message_id, format="full")
             parsed = parse_message(full_message)
@@ -177,6 +185,11 @@ def full_sync_inbox(
                             "extraction_status": "NOT_PROCESSED",
                         },
                     )
+                if is_new:
+                    try:
+                        create_vip_alert_if_needed(db, user_id, email_row)
+                    except Exception:
+                        pass
             db.commit()
         except Exception as exc:
             db.rollback()

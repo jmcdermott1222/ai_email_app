@@ -18,6 +18,9 @@ type Preferences = {
   vip_alerts_enabled: boolean;
   working_hours: WorkingHours;
   meeting_default_duration_min: number;
+  vip_senders: string[];
+  vip_domains: string[];
+  vip_keywords: string[];
   automation_level: 'SUGGEST_ONLY' | 'AUTO_LABEL' | 'AUTO_ARCHIVE' | 'AUTO_TRASH';
 };
 
@@ -25,6 +28,9 @@ export default function SettingsPage() {
   const router = useRouter();
   const [preferences, setPreferences] = useState<Preferences | null>(null);
   const [daysInput, setDaysInput] = useState('');
+  const [vipSendersInput, setVipSendersInput] = useState('');
+  const [vipDomainsInput, setVipDomainsInput] = useState('');
+  const [vipKeywordsInput, setVipKeywordsInput] = useState('');
   const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
@@ -34,6 +40,9 @@ export default function SettingsPage() {
         if (!active) return;
         setPreferences(data);
         setDaysInput(data.working_hours.days.join(', '));
+        setVipSendersInput((data.vip_senders ?? []).join(', '));
+        setVipDomainsInput((data.vip_domains ?? []).join(', '));
+        setVipKeywordsInput((data.vip_keywords ?? []).join(', '));
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : '';
@@ -54,6 +63,18 @@ export default function SettingsPage() {
     setStatus(null);
     const payload = {
       ...preferences,
+      vip_senders: vipSendersInput
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+      vip_domains: vipDomainsInput
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
+      vip_keywords: vipKeywordsInput
+        .split(',')
+        .map((entry) => entry.trim())
+        .filter(Boolean),
       working_hours: {
         ...preferences.working_hours,
         days: daysInput
@@ -70,6 +91,9 @@ export default function SettingsPage() {
       });
       setPreferences(updated);
       setDaysInput(updated.working_hours.days.join(', '));
+      setVipSendersInput((updated.vip_senders ?? []).join(', '));
+      setVipDomainsInput((updated.vip_domains ?? []).join(', '));
+      setVipKeywordsInput((updated.vip_keywords ?? []).join(', '));
       setStatus('Preferences saved.');
     } catch {
       setStatus('Failed to save preferences.');
@@ -114,6 +138,30 @@ export default function SettingsPage() {
               vip_alerts_enabled: event.target.checked,
             })
           }
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="vip_senders">VIP senders (comma separated)</label>
+        <input
+          id="vip_senders"
+          value={vipSendersInput}
+          onChange={(event) => setVipSendersInput(event.target.value)}
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="vip_domains">VIP domains (comma separated)</label>
+        <input
+          id="vip_domains"
+          value={vipDomainsInput}
+          onChange={(event) => setVipDomainsInput(event.target.value)}
+        />
+      </div>
+      <div className="form-row">
+        <label htmlFor="vip_keywords">VIP keywords (comma separated)</label>
+        <input
+          id="vip_keywords"
+          value={vipKeywordsInput}
+          onChange={(event) => setVipKeywordsInput(event.target.value)}
         />
       </div>
       <div className="form-row">

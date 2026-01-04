@@ -30,7 +30,8 @@ def get_preferences(
         db.add(preferences)
         db.commit()
 
-    return Preferences.model_validate(preferences.preferences or default_preferences())
+    merged = {**default_preferences(), **(preferences.preferences or {})}
+    return Preferences.model_validate(merged)
 
 
 @router.put("/preferences", response_model=Preferences)

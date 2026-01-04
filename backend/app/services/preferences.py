@@ -20,6 +20,8 @@ DEFAULT_PREFERENCES = {
     "blocked_domains": [],
     "blocked_keywords": [],
     "vip_senders": [],
+    "vip_domains": [],
+    "vip_keywords": [],
 }
 
 
