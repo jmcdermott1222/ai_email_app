@@ -13,6 +13,7 @@ from sqlalchemy import (
     LargeBinary,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -59,6 +60,7 @@ class User(Base, TimestampMixin):
     preferences: Mapped[UserPreferences] = relationship(
         back_populates="user", uselist=False
     )
+    gmail_labels: Mapped[list[UserGmailLabel]] = relationship(back_populates="user")
 
 
 class GoogleOAuthToken(Base, TimestampMixin):
@@ -241,6 +243,20 @@ class UserPreferences(Base, TimestampMixin):
     preferences: Mapped[dict | None] = mapped_column(JSONBType, nullable=True)
 
     user: Mapped[User] = relationship(back_populates="preferences")
+
+
+class UserGmailLabel(Base, TimestampMixin):
+    """Per-user Gmail label IDs."""
+
+    __tablename__ = "user_gmail_labels"
+    __table_args__ = (UniqueConstraint("user_id", "label_name"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    label_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    label_id: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    user: Mapped[User] = relationship(back_populates="gmail_labels")
 
 
 class EmailFeedback(Base, TimestampMixin):

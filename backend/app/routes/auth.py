@@ -13,7 +13,7 @@ from app.auth import clear_session_cookie, create_session_token, set_session_coo
 from app.config import Settings, get_settings
 from app.crypto import get_crypto
 from app.db import get_db
-from app.models import GmailSyncState, GoogleOAuthToken, User
+from app.models import GmailSyncState, GoogleOAuthToken, User, UserPreferences
 from app.services.google_oauth import (
     GOOGLE_OAUTH_SCOPES,
     TOKEN_STATUS_OK,
@@ -22,6 +22,8 @@ from app.services.google_oauth import (
     exchange_code_for_token,
     verify_id_token,
 )
+from app.services.label_bootstrap import ensure_copilot_labels
+from app.services.preferences import default_preferences
 
 router = APIRouter()
 
@@ -147,7 +149,25 @@ def google_oauth_callback(
         sync_state = GmailSyncState(user_id=user.id)
         db.add(sync_state)
 
+    preferences = db.execute(
+        select(UserPreferences).where(UserPreferences.user_id == user.id)
+    ).scalar_one_or_none()
+    if not preferences:
+        preferences = UserPreferences(
+            user_id=user.id,
+            preferences=default_preferences(),
+        )
+        db.add(preferences)
+
     db.commit()
+
+    try:
+        ensure_copilot_labels(db, user.id, settings, crypto)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create Copilot labels",
+        ) from exc
 
     session_token = create_session_token(user, settings)
     response = RedirectResponse(

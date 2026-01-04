@@ -1,9 +1,9 @@
 """Pydantic schemas for API input/output."""
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 class APIModel(BaseModel):
@@ -67,6 +67,34 @@ class UserPreferencesRead(APIModel):
     preferences: dict[str, Any] | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class WorkingHours(APIModel):
+    days: list[str]
+    start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    lunch_start: str = Field(pattern=r"^\d{2}:\d{2}$")
+    lunch_end: str = Field(pattern=r"^\d{2}:\d{2}$")
+
+
+class Preferences(APIModel):
+    digest_time_local: str = Field(pattern=r"^\d{2}:\d{2}$")
+    vip_alerts_enabled: bool
+    working_hours: WorkingHours
+    meeting_default_duration_min: int
+    automation_level: Literal[
+        "SUGGEST_ONLY", "AUTO_LABEL", "AUTO_ARCHIVE", "AUTO_TRASH"
+    ]
+
+
+class PreferencesUpdate(APIModel):
+    digest_time_local: str | None = Field(default=None, pattern=r"^\d{2}:\d{2}$")
+    vip_alerts_enabled: bool | None = None
+    working_hours: WorkingHours | None = None
+    meeting_default_duration_min: int | None = None
+    automation_level: (
+        Literal["SUGGEST_ONLY", "AUTO_LABEL", "AUTO_ARCHIVE", "AUTO_TRASH"] | None
+    ) = None
 
 
 class GoogleIntegrationStatus(APIModel):

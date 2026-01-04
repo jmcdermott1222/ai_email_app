@@ -76,6 +76,7 @@ make web-dev
 - Start OAuth: `http://localhost:8000/auth/google/start`
 - Callback: `http://localhost:8000/auth/google/callback`
 - Integration status (requires session cookie): `http://localhost:8000/api/integrations/google/status`
+- Preferences (requires session cookie): `http://localhost:8000/api/preferences`
 
 ## Common Commands
 
