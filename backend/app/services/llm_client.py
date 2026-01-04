@@ -46,20 +46,13 @@ class LLMClient:
                 "model": target_model,
             },
         )
-        response = self._client.responses.create(
+        content = self._call_model(
+            prompt=prompt,
+            json_schema=json_schema,
             model=target_model,
-            input=prompt,
             temperature=temperature,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "structured_output",
-                    "schema": json_schema,
-                    "strict": True,
-                },
-            },
+            include_schema=True,
         )
-        content = response.output_text
         parsed = self._parse_and_validate(content, json_schema)
         if parsed is not None:
             return parsed
@@ -80,24 +73,64 @@ class LLMClient:
                 "model": target_model,
             },
         )
-        repair_response = self._client.responses.create(
+        repair_content = self._call_model(
+            prompt=repair_prompt,
+            json_schema=json_schema,
             model=target_model,
-            input=repair_prompt,
             temperature=0,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": "structured_output",
-                    "schema": json_schema,
-                    "strict": True,
-                },
-            },
+            include_schema=False,
         )
-        repair_content = repair_response.output_text
         parsed = self._parse_and_validate(repair_content, json_schema)
         if parsed is None:
             raise LLMError("LLM output failed schema validation after repair")
         return parsed
+
+    def _call_model(
+        self,
+        prompt: str,
+        json_schema: dict[str, Any],
+        model: str,
+        temperature: float,
+        include_schema: bool,
+    ) -> str:
+        if hasattr(self._client, "responses"):
+            response = self._client.responses.create(
+                model=model,
+                input=prompt,
+                temperature=temperature,
+                response_format={
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": "structured_output",
+                        "schema": json_schema,
+                        "strict": True,
+                    },
+                },
+            )
+            return response.output_text
+
+        schema_block = (
+            f"\n\nJSON Schema:\n{json.dumps(json_schema)}" if include_schema else ""
+        )
+        response = self._client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "Return only valid JSON that matches the provided schema. "
+                        "No extra keys or commentary."
+                    ),
+                },
+                {"role": "user", "content": f"{prompt}{schema_block}"},
+            ],
+            temperature=temperature,
+            response_format={"type": "json_object"},
+        )
+        content = response.choices[0].message.content if response.choices else None
+        if not content:
+            raise LLMError("LLM returned empty content")
+        return content
 
     @staticmethod
     def _parse_and_validate(

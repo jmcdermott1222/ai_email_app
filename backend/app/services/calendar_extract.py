@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import base64
+import logging
 import re
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Any
@@ -28,6 +29,7 @@ from app.services.preferences import default_preferences
 
 PROMPT_VERSION = "v1"
 TIME_PATTERN = re.compile(r"\b(\d{1,2}:\d{2}|\d{1,2}\s?(am|pm))\b", re.IGNORECASE)
+logger = logging.getLogger(__name__)
 
 
 def detect_ics_invites(
@@ -140,7 +142,14 @@ def extract_in_text_candidates(
         )
         return _store_candidates(db, user_id, email_id, [candidate])
 
-    return _extract_with_llm(db, settings, email, user_id, email_id, text)
+    try:
+        return _extract_with_llm(db, settings, email, user_id, email_id, text)
+    except Exception as exc:  # LLM failures should not block invite detection.
+        logger.warning(
+            "Calendar LLM extraction failed",
+            extra={"user_id": user_id, "email_id": email_id, "error": str(exc)},
+        )
+        return []
 
 
 def generate_calendar_candidates(
