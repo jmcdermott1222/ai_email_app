@@ -115,6 +115,41 @@ class CalendarCandidateRead(APIModel):
     updated_at: datetime
 
 
+class MeetingTimeSuggestionRead(APIModel):
+    start: datetime
+    end: datetime
+    score: float | None = None
+
+
+class MeetingTimeSuggestionRequest(APIModel):
+    duration_min: int | None = None
+
+
+class MeetingTimeSuggestionResponse(APIModel):
+    candidate_id: int
+    suggestions: list[MeetingTimeSuggestionRead]
+
+
+class CalendarEventCreateRequest(APIModel):
+    title: str | None = None
+    start: datetime | None = None
+    end: datetime | None = None
+    timezone: str | None = None
+    location: str | None = None
+    attendees: list[str] | None = None
+    description: str | None = None
+
+
+class CalendarEventCreatedRead(APIModel):
+    id: int
+    calendar_candidate_id: int
+    event_id: str | None = None
+    payload: dict[str, Any] | None = None
+    status: str | None = None
+    created_at: datetime
+    updated_at: datetime
+
+
 class EmailTriageRead(APIModel):
     id: int
     email_id: int

@@ -6,12 +6,75 @@ import { useParams, useRouter } from 'next/navigation';
 import { apiFetch } from '../../../lib/api';
 import {
   CalendarCandidate,
+  CalendarEventCreateRequest,
+  CalendarEventCreated,
   getCalendarCandidates,
   proposeCalendarCandidates,
+  suggestMeetingTimes,
+  createCalendarEvent,
+  MeetingTimeSuggestion,
 } from '../../../lib/calendar';
 import { Draft, getDrafts } from '../../../lib/drafts';
 import { AttachmentSummary, EmailDetail } from '../../../lib/emails';
 import FeedbackControls from '../../components/feedback-controls';
+
+const pad = (value: number) => String(value).padStart(2, '0');
+
+const toLocalInputValue = (isoString: string) => {
+  const date = new Date(isoString);
+  if (Number.isNaN(date.getTime())) return '';
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(
+    date.getDate(),
+  )}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
+const toIsoString = (localValue: string) => {
+  if (!localValue) return '';
+  const date = new Date(localValue);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toISOString();
+};
+
+const parseAttendees = (value: string) =>
+  value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+const getDefaultTimeZone = () => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+const buildDefaultDescription = (email: EmailDetail) => {
+  const link = email.gmail_message_id
+    ? `https://mail.google.com/mail/u/0/#inbox/${email.gmail_message_id}`
+    : '';
+  return [
+    'Created from AI Email Copilot.',
+    email.subject ? `Email subject: ${email.subject}` : '',
+    link ? `Email link: ${link}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n');
+};
+
+const readSuggestedTimes = (payload: Record<string, unknown> | null) => {
+  if (!payload) return [];
+  const items = payload.suggested_times;
+  if (!Array.isArray(items)) return [];
+  return items
+    .map((item) => {
+      if (!item || typeof item !== 'object') return null;
+      const entry = item as { start?: unknown; end?: unknown; score?: unknown };
+      if (typeof entry.start !== 'string' || typeof entry.end !== 'string') {
+        return null;
+      }
+      return {
+        start: entry.start,
+        end: entry.end,
+        score: typeof entry.score === 'number' ? entry.score : undefined,
+      };
+    })
+    .filter((item): item is MeetingTimeSuggestion => Boolean(item));
+};
 
 export default function EmailDetailPage() {
   const params = useParams();
@@ -26,6 +89,20 @@ export default function EmailDetailPage() {
   const [draftStatus, setDraftStatus] = useState<string | null>(null);
   const [calendarCandidates, setCalendarCandidates] = useState<CalendarCandidate[]>([]);
   const [calendarStatus, setCalendarStatus] = useState<string | null>(null);
+  const [activeCandidate, setActiveCandidate] = useState<CalendarCandidate | null>(null);
+  const [meetingSuggestions, setMeetingSuggestions] = useState<MeetingTimeSuggestion[]>([]);
+  const [meetingStatus, setMeetingStatus] = useState<string | null>(null);
+  const [eventStatus, setEventStatus] = useState<string | null>(null);
+  const [eventLink, setEventLink] = useState<string | null>(null);
+  const [eventForm, setEventForm] = useState({
+    title: '',
+    start: '',
+    end: '',
+    timezone: '',
+    location: '',
+    attendees: '',
+    description: '',
+  });
 
   useEffect(() => {
     if (!emailId) return;
@@ -67,6 +144,22 @@ export default function EmailDetailPage() {
         setCalendarStatus('Failed to load calendar candidates.');
       });
   }, [emailId]);
+
+  useEffect(() => {
+    if (!activeCandidate) return;
+    const existing = readSuggestedTimes(activeCandidate.payload);
+    setMeetingSuggestions(existing);
+    setMeetingStatus('Loading suggestions...');
+    setEventLink(null);
+    suggestMeetingTimes(activeCandidate.id)
+      .then((suggestions) => {
+        setMeetingSuggestions(suggestions);
+        setMeetingStatus(null);
+      })
+      .catch(() => {
+        setMeetingStatus('Failed to load suggestions.');
+      });
+  }, [activeCandidate]);
 
   const handleProcessAttachments = async () => {
     if (!emailId) return;
@@ -175,8 +268,64 @@ export default function EmailDetailPage() {
     }
   };
 
-  const handleCreateEvent = () => {
-    setCalendarStatus('Event creation is not available yet.');
+  const handleCreateEvent = (candidate: CalendarCandidate) => {
+    setActiveCandidate(candidate);
+    setEventStatus(null);
+    setMeetingStatus(null);
+    const payload = candidate.payload ?? {};
+    const title = typeof payload.title === 'string' ? payload.title : (email?.subject ?? '');
+    const start = typeof payload.start === 'string' ? toLocalInputValue(payload.start) : '';
+    const end = typeof payload.end === 'string' ? toLocalInputValue(payload.end) : '';
+    const attendees = Array.isArray(payload.attendees) ? payload.attendees.join(', ') : '';
+    const location = typeof payload.location === 'string' ? payload.location : '';
+    const timezone = getDefaultTimeZone();
+    const description = email ? buildDefaultDescription(email) : '';
+    setEventForm({
+      title: title ?? '',
+      start,
+      end,
+      timezone,
+      location,
+      attendees,
+      description,
+    });
+  };
+
+  const handleSelectSuggestion = (suggestion: MeetingTimeSuggestion) => {
+    setEventForm((prev) => ({
+      ...prev,
+      start: toLocalInputValue(suggestion.start),
+      end: toLocalInputValue(suggestion.end),
+    }));
+  };
+
+  const handleSubmitEvent = async () => {
+    if (!activeCandidate) return;
+    setEventStatus(null);
+    if (!eventForm.start || !eventForm.end) {
+      setEventStatus('Start and end are required.');
+      return;
+    }
+    const request: CalendarEventCreateRequest = {
+      title: eventForm.title || undefined,
+      start: toIsoString(eventForm.start) || undefined,
+      end: toIsoString(eventForm.end) || undefined,
+      timezone: eventForm.timezone || undefined,
+      location: eventForm.location || undefined,
+      attendees: parseAttendees(eventForm.attendees),
+      description: eventForm.description || undefined,
+    };
+    try {
+      const created: CalendarEventCreated = await createCalendarEvent(activeCandidate.id, request);
+      const link =
+        created.payload && typeof created.payload.htmlLink === 'string'
+          ? created.payload.htmlLink
+          : null;
+      setEventLink(link);
+      setEventStatus('Event created.');
+    } catch {
+      setEventStatus('Failed to create event.');
+    }
   };
 
   if (!email) {
@@ -257,7 +406,11 @@ export default function EmailDetailPage() {
                   </div>
                   {attendees ? <div>Attendees: {attendees}</div> : null}
                 </div>
-                <button className="button button-muted" type="button" onClick={handleCreateEvent}>
+                <button
+                  className="button button-muted"
+                  type="button"
+                  onClick={() => handleCreateEvent(candidate)}
+                >
                   Edit & create event
                 </button>
               </div>
@@ -266,6 +419,138 @@ export default function EmailDetailPage() {
         )}
         {calendarStatus ? <p>{calendarStatus}</p> : null}
       </div>
+      {activeCandidate ? (
+        <div className="modal-backdrop" role="dialog" aria-modal="true">
+          <div className="modal">
+            <div className="modal-header">
+              <h4>Create calendar event</h4>
+              <button
+                className="button button-muted"
+                type="button"
+                onClick={() => setActiveCandidate(null)}
+              >
+                Close
+              </button>
+            </div>
+            <div className="modal-section">
+              <h5>Suggested times</h5>
+              {meetingSuggestions.length === 0 ? (
+                <p>No suggestions yet.</p>
+              ) : (
+                <div className="suggestion-chips">
+                  {meetingSuggestions.map((suggestion) => (
+                    <button
+                      key={`${suggestion.start}-${suggestion.end}`}
+                      className="chip"
+                      type="button"
+                      onClick={() => handleSelectSuggestion(suggestion)}
+                    >
+                      {new Date(suggestion.start).toLocaleString()} —{' '}
+                      {new Date(suggestion.end).toLocaleTimeString()}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {meetingStatus ? <p>{meetingStatus}</p> : null}
+            </div>
+            <div className="modal-section">
+              <div className="form-row">
+                <label htmlFor="event-title">Title</label>
+                <input
+                  id="event-title"
+                  type="text"
+                  value={eventForm.title}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, title: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-start">Start</label>
+                <input
+                  id="event-start"
+                  type="datetime-local"
+                  value={eventForm.start}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, start: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-end">End</label>
+                <input
+                  id="event-end"
+                  type="datetime-local"
+                  value={eventForm.end}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, end: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-timezone">Time zone</label>
+                <input
+                  id="event-timezone"
+                  type="text"
+                  value={eventForm.timezone}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, timezone: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-location">Location</label>
+                <input
+                  id="event-location"
+                  type="text"
+                  value={eventForm.location}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, location: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-attendees">Attendees (comma-separated)</label>
+                <input
+                  id="event-attendees"
+                  type="text"
+                  value={eventForm.attendees}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, attendees: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="form-row">
+                <label htmlFor="event-description">Description</label>
+                <textarea
+                  id="event-description"
+                  rows={4}
+                  value={eventForm.description}
+                  onChange={(event) =>
+                    setEventForm((prev) => ({ ...prev, description: event.target.value }))
+                  }
+                />
+              </div>
+              <div className="action-row">
+                <button className="button" type="button" onClick={handleSubmitEvent}>
+                  Create event
+                </button>
+                {eventLink ? (
+                  <a
+                    className="button button-muted"
+                    href={eventLink}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open in Google Calendar
+                  </a>
+                ) : null}
+              </div>
+              {eventStatus ? <p>{eventStatus}</p> : null}
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="draft-panel">
         <div className="draft-header">
           <h4>Draft reply</h4>

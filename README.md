@@ -105,6 +105,8 @@ make web-dev
 - Audit log (requires session cookie): `GET http://localhost:8000/api/audit`
 - Calendar candidate extraction (requires session cookie): `POST http://localhost:8000/api/emails/{id}/calendar/propose`
 - Calendar candidates (requires session cookie): `GET http://localhost:8000/api/emails/{id}/calendar/candidates`
+- Calendar time suggestions (requires session cookie): `POST http://localhost:8000/api/calendar/candidates/{id}/suggest_times`
+- Calendar event creation (requires session cookie): `POST http://localhost:8000/api/calendar/candidates/{id}/create_event`
 - Propose draft (requires session cookie): `POST http://localhost:8000/api/emails/{id}/draft/propose`
 - Create Gmail draft (requires session cookie): `POST http://localhost:8000/api/drafts/{id}/create_in_gmail`
 - List drafts (requires session cookie): `GET http://localhost:8000/api/drafts?email_id={id}`
