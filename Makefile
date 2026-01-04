@@ -1,4 +1,4 @@
-.PHONY: dev backend-dev web-dev lint format test migrate backend-lint web-lint backend-format web-format backend-test web-test
+.PHONY: dev backend-dev web-dev lint format test migrate makemigrations backend-lint web-lint backend-format web-format backend-test web-test
 
 dev:
 	docker-compose up -d
@@ -20,6 +20,9 @@ test: backend-test web-test
 
 migrate:
 	cd backend && alembic upgrade head
+
+makemigrations:
+	cd backend && alembic revision --autogenerate -m "migration"
 
 backend-lint:
 	cd backend && ruff check . && black --check .
