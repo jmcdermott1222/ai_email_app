@@ -161,6 +161,14 @@ select {
   background: #0b1120;
 }
 
+.action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  margin: 1rem 0;
+}
+
 .feedback {
   margin-top: 1rem;
   padding: 1rem;
@@ -190,6 +198,39 @@ select {
   display: flex;
   gap: 1rem;
   align-items: center;
+}
+
+.feedback-compact-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+}
+
+.feedback-compact-row select {
+  min-width: 140px;
+}
+
+.inline-checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.button-muted {
+  background: #1e293b;
+  color: #e2e8f0;
+}
+
+.button-muted:hover {
+  background: #334155;
+}
+
+.feedback-status {
+  margin-top: 0.5rem;
+  color: #94a3b8;
+  font-size: 0.85rem;
 }
 
 a {

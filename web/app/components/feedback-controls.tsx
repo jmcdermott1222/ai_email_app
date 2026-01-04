@@ -23,13 +23,13 @@ export default function FeedbackControls({
   const [alwaysIgnoreKeyword, setAlwaysIgnoreKeyword] = useState('');
   const [status, setStatus] = useState<string | null>(null);
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (overrideLabel?: FeedbackLabel) => {
     setStatus(null);
     try {
       await apiFetch(`/api/emails/${emailId}/feedback`, {
         method: 'POST',
         body: JSON.stringify({
-          feedback_label: label,
+          feedback_label: overrideLabel ?? label,
           reason: reason || null,
           always_ignore_sender: alwaysIgnoreSender,
           always_ignore_keyword: alwaysIgnoreKeyword || null,
@@ -44,19 +44,56 @@ export default function FeedbackControls({
 
   return (
     <div className={`feedback ${compact ? 'feedback-compact' : ''}`}>
-      <div className="feedback-row">
-        <label htmlFor={`feedback-label-${emailId}`}>Feedback</label>
-        <select
-          id={`feedback-label-${emailId}`}
-          value={label}
-          onChange={(event) => setLabel(event.target.value as FeedbackLabel)}
-        >
-          <option value="IMPORTANT">Important</option>
-          <option value="NOT_IMPORTANT">Not important</option>
-          <option value="SPAM">Spam</option>
-          <option value="NEWSLETTER_OK">Newsletter ok</option>
-        </select>
-      </div>
+      {compact ? (
+        <div className="feedback-compact-row">
+          <button
+            className="button button-muted"
+            type="button"
+            onClick={() => handleSubmit('NOT_IMPORTANT')}
+          >
+            Not important
+          </button>
+          <button
+            className="button button-muted"
+            type="button"
+            onClick={() => handleSubmit('SPAM')}
+          >
+            Spam
+          </button>
+          <select
+            aria-label="Quick reason"
+            value={reason}
+            onChange={(event) => setReason(event.target.value)}
+          >
+            <option value="">Reason</option>
+            <option value="Not relevant">Not relevant</option>
+            <option value="Too promotional">Too promotional</option>
+            <option value="Already handled">Already handled</option>
+          </select>
+          <label className="inline-checkbox">
+            <input
+              type="checkbox"
+              checked={alwaysIgnoreSender}
+              onChange={(event) => setAlwaysIgnoreSender(event.target.checked)}
+            />
+            Ignore sender
+          </label>
+        </div>
+      ) : (
+        <div className="feedback-row">
+          <label htmlFor={`feedback-label-${emailId}`}>Feedback</label>
+          <select
+            id={`feedback-label-${emailId}`}
+            value={label}
+            onChange={(event) => setLabel(event.target.value as FeedbackLabel)}
+          >
+            <option value="IMPORTANT">Important</option>
+            <option value="NOT_IMPORTANT">Not important</option>
+            <option value="SPAM">Spam</option>
+            <option value="NEWSLETTER_OK">Newsletter ok</option>
+          </select>
+        </div>
+      )}
       {!compact ? (
         <>
           <div className="feedback-row">
@@ -92,12 +129,16 @@ export default function FeedbackControls({
           </div>
         </>
       ) : null}
-      <div className="feedback-actions">
-        <button className="button" type="button" onClick={handleSubmit}>
-          Submit feedback
-        </button>
-        {status ? <span>{status}</span> : null}
-      </div>
+      {!compact ? (
+        <div className="feedback-actions">
+          <button className="button" type="button" onClick={() => handleSubmit()}>
+            Submit feedback
+          </button>
+          {status ? <span>{status}</span> : null}
+        </div>
+      ) : status ? (
+        <div className="feedback-status">{status}</div>
+      ) : null}
     </div>
   );
 }

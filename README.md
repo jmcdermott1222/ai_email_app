@@ -82,6 +82,10 @@ make web-dev
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
 - Triage (requires session cookie): `POST http://localhost:8000/api/emails/{id}/triage`
 - Feedback (requires session cookie): `POST http://localhost:8000/api/emails/{id}/feedback`
+- Manual actions (requires session cookie): `POST http://localhost:8000/api/emails/{id}/actions`
+- Automation run (requires session cookie): `POST http://localhost:8000/api/automation/run_for_email/{id}`
+- Audit log (requires session cookie): `GET http://localhost:8000/api/audit`
+- Snooze sweep (worker): `POST http://localhost:8001/internal/jobs/snooze_sweep`
 
 ## Common Commands
 

@@ -13,6 +13,7 @@ export default function EmailDetailPage() {
   const emailId = Number(params.id);
   const [email, setEmail] = useState<EmailDetail | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [snoozeUntil, setSnoozeUntil] = useState('');
 
   useEffect(() => {
     if (!emailId) return;
@@ -43,6 +44,33 @@ export default function EmailDetailPage() {
     }
   };
 
+  const handleAction = async (action: string) => {
+    if (!emailId) return;
+    setStatus(null);
+    try {
+      await apiFetch(`/api/emails/${emailId}/actions`, {
+        method: 'POST',
+        body: JSON.stringify({ actions: [action] }),
+      });
+      setStatus('Action applied.');
+    } catch {
+      setStatus('Action failed.');
+    }
+  };
+
+  const handleSnooze = async () => {
+    if (!snoozeUntil) {
+      setStatus('Pick a snooze time.');
+      return;
+    }
+    const date = new Date(snoozeUntil);
+    if (Number.isNaN(date.getTime())) {
+      setStatus('Invalid snooze time.');
+      return;
+    }
+    await handleAction(`SNOOZE_UNTIL:${date.toISOString()}`);
+  };
+
   const handleRunTriage = async () => {
     if (!emailId) return;
     setStatus(null);
@@ -53,6 +81,17 @@ export default function EmailDetailPage() {
       setStatus('Triage complete.');
     } catch {
       setStatus('Triage failed.');
+    }
+  };
+
+  const handleRunAutomation = async () => {
+    if (!emailId) return;
+    setStatus(null);
+    try {
+      await apiFetch(`/api/automation/run_for_email/${emailId}`, { method: 'POST' });
+      setStatus('Automation complete.');
+    } catch {
+      setStatus('Automation failed.');
     }
   };
 
@@ -70,6 +109,25 @@ export default function EmailDetailPage() {
     <div className="card">
       <h3>{email.subject ?? '(No subject)'}</h3>
       <p>From: {email.from_email ?? 'Unknown sender'}</p>
+      <div className="action-row">
+        <button className="button" type="button" onClick={() => handleAction('ARCHIVE')}>
+          Archive
+        </button>
+        <button className="button button-muted" type="button" onClick={() => handleAction('TRASH')}>
+          Trash
+        </button>
+        <input
+          type="datetime-local"
+          value={snoozeUntil}
+          onChange={(event) => setSnoozeUntil(event.target.value)}
+        />
+        <button className="button button-muted" type="button" onClick={handleSnooze}>
+          Snooze
+        </button>
+        <button className="button" type="button" onClick={handleRunAutomation}>
+          Run automation
+        </button>
+      </div>
       {email.importance_label ? (
         <div className="triage-panel">
           <p>Importance: {email.importance_label}</p>

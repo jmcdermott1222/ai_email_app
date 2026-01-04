@@ -90,6 +90,18 @@ class EmailFeedbackRequest(APIModel):
     always_ignore_keyword: str | None = None
 
 
+class EmailActionsRequest(APIModel):
+    actions: list[str]
+
+
+class AuditLogRead(APIModel):
+    id: int
+    action: str
+    target_type: str | None = None
+    target_id: str | None = None
+    created_at: datetime
+
+
 EmailDetail.model_rebuild()
 
 

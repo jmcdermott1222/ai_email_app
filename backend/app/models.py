@@ -127,6 +127,10 @@ class Email(Base, TimestampMixin):
     ingest_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     ingest_error: Mapped[str | None] = mapped_column(Text, nullable=True)
     clean_body_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    snooze_until_ts: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    is_snoozed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     user: Mapped[User] = relationship(back_populates="emails")
     attachments: Mapped[list[Attachment]] = relationship(back_populates="email")
