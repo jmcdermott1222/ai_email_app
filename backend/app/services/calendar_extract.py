@@ -272,6 +272,7 @@ def _store_invites_from_ics(
         title = _string_or_none(component.get("summary"))
         location = _string_or_none(component.get("location"))
         attendees = _parse_attendees(component.get("attendee"))
+        ical_uid = _string_or_none(component.get("uid"))
         candidates_payloads.append(
             _build_candidate_payload(
                 candidate_type="INVITE",
@@ -282,6 +283,7 @@ def _store_invites_from_ics(
                 location=location,
                 confidence=1.0,
                 source=source,
+                ical_uid=ical_uid,
             )
         )
 
@@ -341,8 +343,24 @@ def _store_candidates(
 ) -> list[CalendarCandidate]:
     if not payloads:
         return []
+    existing = (
+        db.execute(
+            select(CalendarCandidate).where(
+                CalendarCandidate.user_id == user_id,
+                CalendarCandidate.email_id == email_id,
+            )
+        )
+        .scalars()
+        .all()
+    )
+    existing_keys = {_candidate_key(row.payload or {}) for row in existing}
+    seen: set[tuple] = set()
     rows = []
     for payload in payloads:
+        key = _candidate_key(payload)
+        if key in existing_keys or key in seen:
+            continue
+        seen.add(key)
         rows.append(
             CalendarCandidate(
                 user_id=user_id,
@@ -379,6 +397,7 @@ def _build_candidate_payload(
     location: str | None,
     confidence: float,
     source: str,
+    ical_uid: str | None = None,
 ) -> dict[str, Any]:
     return {
         "type": candidate_type or "PROPOSED_TIME",
@@ -389,6 +408,7 @@ def _build_candidate_payload(
         "location": location,
         "confidence": confidence,
         "source": source,
+        "ical_uid": ical_uid,
     }
 
 
@@ -452,3 +472,29 @@ def _clamp_confidence(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.5
     return max(0.0, min(1.0, number))
+
+
+def _candidate_key(payload: dict[str, Any]) -> tuple:
+    candidate_type = str(payload.get("type") or "").strip().lower()
+    start = _normalize_text(payload.get("start"))
+    end = _normalize_text(payload.get("end"))
+    title = _normalize_text(payload.get("title"))
+    location = _normalize_text(payload.get("location"))
+    ical_uid = _normalize_text(payload.get("ical_uid"))
+    attendees = payload.get("attendees") or []
+    normalized_attendees = tuple(
+        sorted(
+            {
+                _normalize_text(attendee)
+                for attendee in attendees
+                if isinstance(attendee, str) and attendee.strip()
+            }
+        )
+    )
+    return (candidate_type, start, end, title, location, ical_uid, normalized_attendees)
+
+
+def _normalize_text(value: Any) -> str:
+    if value is None:
+        return ""
+    return str(value).strip().lower()

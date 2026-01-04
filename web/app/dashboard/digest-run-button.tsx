@@ -25,11 +25,17 @@ export default function DigestRunButton() {
   };
 
   return (
-    <div className="sync-row">
-      <button className="button" type="button" onClick={handleRun} disabled={loading}>
+    <div className="action-inline">
+      <button
+        className="button"
+        type="button"
+        onClick={handleRun}
+        disabled={loading}
+        title="Generate the latest digest from recent emails"
+      >
         {loading ? 'Generating...' : 'Run digest now'}
       </button>
-      {status ? <span>{status}</span> : null}
+      {status ? <span className="status-text">{status}</span> : null}
     </div>
   );
 }

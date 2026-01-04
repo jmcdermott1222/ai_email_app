@@ -16,6 +16,8 @@ export type DigestContent = {
   generated_at: string;
   since_ts: string;
   triaged_count: number;
+  vip_count?: number;
+  vip_senders?: string[];
   counts: Record<string, number>;
   sections: {
     needs_reply: DigestEmail[];

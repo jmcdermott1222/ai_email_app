@@ -1,6 +1,6 @@
-# AI Email Copilot
+# Clearview Email
 
-This repository contains a minimal monorepo scaffold for the AI Email + Calendar Copilot.
+This repository contains a minimal monorepo scaffold for Clearview Email, a private email + calendar copilot.
 It includes a FastAPI backend (API + worker) and a Next.js web frontend.
 
 ## Prerequisites
@@ -88,6 +88,7 @@ make web-dev
 - Web: http://localhost:3000
 - Login: http://localhost:3000/login
 - Dashboard: http://localhost:3000/dashboard
+- Inbox: http://localhost:3000/inbox
 
 ### Google OAuth Flow
 
@@ -108,6 +109,7 @@ make web-dev
 - Automation run (requires session cookie): `POST http://localhost:8000/api/automation/run_for_email/{id}`
 - Audit log (requires session cookie): `GET http://localhost:8000/api/audit`
 - Calendar candidate extraction (requires session cookie): `POST http://localhost:8000/api/emails/{id}/calendar/propose`
+- Accept calendar invite (requires session cookie): `POST http://localhost:8000/api/calendar/candidates/{id}/accept_invite`
 - Calendar candidates (requires session cookie): `GET http://localhost:8000/api/emails/{id}/calendar/candidates`
 - Calendar time suggestions (requires session cookie): `POST http://localhost:8000/api/calendar/candidates/{id}/suggest_times`
 - Calendar event creation (requires session cookie): `POST http://localhost:8000/api/calendar/candidates/{id}/create_event`

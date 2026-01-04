@@ -56,11 +56,15 @@ def test_detect_ics_invite_from_attachment(monkeypatch):
         detect_ics_invites(
             session, settings, crypto, user.id, email.id, include_inline=False
         )
+        detect_ics_invites(
+            session, settings, crypto, user.id, email.id, include_inline=False
+        )
         candidates = session.execute(select(CalendarCandidate)).scalars().all()
         assert len(candidates) == 1
         payload = candidates[0].payload or {}
         assert payload.get("type") == "INVITE"
         assert payload.get("title") == "Test Meeting"
+        assert payload.get("ical_uid") == "invite-123"
         assert "alice@example.com" in payload.get("attendees", [])
 
 

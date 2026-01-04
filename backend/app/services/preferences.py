@@ -11,6 +11,7 @@ DEFAULT_PREFERENCES = {
         "days": ["mon", "tue", "wed", "thu", "fri"],
         "start_time": "09:00",
         "end_time": "17:00",
+        "lunch_enabled": False,
         "lunch_start": "12:00",
         "lunch_end": "13:00",
     },

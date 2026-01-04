@@ -12,7 +12,7 @@ from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from app.config import Settings
-from app.models import Digest, Email
+from app.models import Alert, Digest, Email
 from app.services.triage import triage_email
 
 
@@ -53,6 +53,23 @@ def generate_daily_digest(
         .all()
     )
 
+    alerts = (
+        db.execute(
+            select(Alert)
+            .where(Alert.user_id == user_id, Alert.created_at >= since_ts)
+            .order_by(Alert.created_at.desc())
+        )
+        .scalars()
+        .all()
+    )
+    vip_senders = sorted(
+        {
+            alert.email.from_email
+            for alert in alerts
+            if alert.email and alert.email.from_email
+        }
+    )
+
     triaged = 0
     sections: dict[str, list[dict[str, Any]]] = {
         section.name: [] for section in SECTIONS
@@ -82,6 +99,8 @@ def generate_daily_digest(
         "generated_at": now.isoformat(),
         "since_ts": since_ts.isoformat(),
         "triaged_count": triaged,
+        "vip_count": len(alerts),
+        "vip_senders": vip_senders,
         "counts": {name: len(items) for name, items in sections.items()},
         "sections": sections,
     }

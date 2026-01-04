@@ -25,11 +25,17 @@ export default function SyncNowButton() {
   };
 
   return (
-    <div className="sync-row">
-      <button className="button" type="button" onClick={handleSync} disabled={loading}>
+    <div className="action-inline">
+      <button
+        className="button"
+        type="button"
+        onClick={handleSync}
+        disabled={loading}
+        title="Fetch the latest inbox messages"
+      >
         {loading ? 'Syncing...' : 'Sync now'}
       </button>
-      {status ? <span>{status}</span> : null}
+      {status ? <span className="status-text">{status}</span> : null}
     </div>
   );
 }

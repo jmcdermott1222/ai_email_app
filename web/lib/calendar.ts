@@ -68,3 +68,9 @@ export async function createCalendarEvent(
     body: JSON.stringify(payload),
   });
 }
+
+export async function acceptCalendarInvite(candidateId: number): Promise<CalendarEventCreated> {
+  return apiFetch<CalendarEventCreated>(`/api/calendar/candidates/${candidateId}/accept_invite`, {
+    method: 'POST',
+  });
+}

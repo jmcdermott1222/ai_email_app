@@ -196,6 +196,7 @@ def _generate_suggestions(
     working_days = _working_day_indices(working_hours.get("days", []))
     start_time = _parse_time(working_hours.get("start_time", "09:00"))
     end_time = _parse_time(working_hours.get("end_time", "17:00"))
+    lunch_enabled = bool(working_hours.get("lunch_enabled", False))
     lunch_start = _parse_time(working_hours.get("lunch_start", "12:00"))
     lunch_end = _parse_time(working_hours.get("lunch_end", "13:00"))
     buffer_delta = timedelta(minutes=BUFFER_MINUTES)
@@ -212,7 +213,7 @@ def _generate_suggestions(
             continue
 
         day_busy = _busy_for_day(day_start, day_end, busy_intervals, buffer_delta)
-        if lunch_start < lunch_end:
+        if lunch_enabled and lunch_start < lunch_end:
             lunch_interval = (
                 _combine_date_time(day, lunch_start, tzinfo),
                 _combine_date_time(day, lunch_end, tzinfo),
@@ -240,6 +241,7 @@ def _slot_is_available(
         return False
     start_time = _parse_time(working_hours.get("start_time", "09:00"))
     end_time = _parse_time(working_hours.get("end_time", "17:00"))
+    lunch_enabled = bool(working_hours.get("lunch_enabled", False))
     lunch_start = _parse_time(working_hours.get("lunch_start", "12:00"))
     lunch_end = _parse_time(working_hours.get("lunch_end", "13:00"))
     tzinfo = slot.start.tzinfo or UTC
@@ -247,7 +249,7 @@ def _slot_is_available(
     day_end = _combine_date_time(slot.start.date(), end_time, tzinfo)
     if slot.start < day_start or slot.end > day_end:
         return False
-    if lunch_start < lunch_end:
+    if lunch_enabled and lunch_start < lunch_end:
         lunch_interval = (
             _combine_date_time(slot.start.date(), lunch_start, tzinfo),
             _combine_date_time(slot.start.date(), lunch_end, tzinfo),

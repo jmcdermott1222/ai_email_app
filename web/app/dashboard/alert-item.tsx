@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import { Alert, markAlertRead } from '../../lib/alerts';
+import { decodeHtmlEntities } from '../../lib/text';
 
 type AlertItemProps = {
   alert: Alert;
@@ -35,7 +36,9 @@ export default function AlertItem({ alert }: AlertItemProps) {
           {alert.email_subject ?? '(No subject)'}{' '}
           {alert.email_from ? <span className="alert-from">from {alert.email_from}</span> : null}
         </div>
-        {alert.email_snippet ? <div className="alert-snippet">{alert.email_snippet}</div> : null}
+        {alert.email_snippet ? (
+          <div className="alert-snippet">{decodeHtmlEntities(alert.email_snippet)}</div>
+        ) : null}
         {alert.reason ? <div className="alert-reason">Reason: {alert.reason}</div> : null}
         {alert.email_internal_date_ts ? (
           <div className="alert-date">
@@ -45,10 +48,20 @@ export default function AlertItem({ alert }: AlertItemProps) {
         {status ? <div className="alert-status">{status}</div> : null}
       </div>
       <div className="alert-actions">
-        <a className="button button-muted" href={`/dashboard/${alert.email_id}`}>
+        <a
+          className="button button-muted"
+          href={`/dashboard/${alert.email_id}`}
+          title="Open the full email detail"
+        >
           View email
         </a>
-        <button className="button" type="button" onClick={handleMarkRead} disabled={loading}>
+        <button
+          className="button"
+          type="button"
+          onClick={handleMarkRead}
+          disabled={loading}
+          title="Mark this alert as read"
+        >
           {loading ? 'Marking...' : 'Mark read'}
         </button>
       </div>

@@ -212,6 +212,7 @@ class WorkingHours(APIModel):
     days: list[str]
     start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
     end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    lunch_enabled: bool = False
     lunch_start: str = Field(pattern=r"^\d{2}:\d{2}$")
     lunch_end: str = Field(pattern=r"^\d{2}:\d{2}$")
 

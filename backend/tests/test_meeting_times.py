@@ -43,6 +43,7 @@ def test_suggest_times_respects_busy_and_lunch():
                         "days": ["mon"],
                         "start_time": "09:00",
                         "end_time": "12:00",
+                        "lunch_enabled": True,
                         "lunch_start": "10:30",
                         "lunch_end": "11:00",
                     },

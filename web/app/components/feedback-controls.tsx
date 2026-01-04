@@ -50,6 +50,7 @@ export default function FeedbackControls({
             className="button button-muted"
             type="button"
             onClick={() => handleSubmit('NOT_IMPORTANT')}
+            title="Tell the copilot this email is not important"
           >
             Not important
           </button>
@@ -57,6 +58,7 @@ export default function FeedbackControls({
             className="button button-muted"
             type="button"
             onClick={() => handleSubmit('SPAM')}
+            title="Mark similar emails as spam"
           >
             Spam
           </button>
@@ -127,7 +129,12 @@ export default function FeedbackControls({
       ) : null}
       {!compact ? (
         <div className="feedback-actions">
-          <button className="button" type="button" onClick={() => handleSubmit()}>
+          <button
+            className="button"
+            type="button"
+            onClick={() => handleSubmit()}
+            title="Save this feedback to improve future triage"
+          >
             Submit feedback
           </button>
           {status ? <span>{status}</span> : null}

@@ -14,8 +14,9 @@ export type Alert = {
   email_internal_date_ts: string | null;
 };
 
-export async function getAlertsServer(cookieHeader: string): Promise<Alert[]> {
-  return apiFetchWithCookies<Alert[]>('/api/alerts', cookieHeader);
+export async function getAlertsServer(cookieHeader: string, unreadOnly = true): Promise<Alert[]> {
+  const suffix = unreadOnly ? '' : '?unread_only=false';
+  return apiFetchWithCookies<Alert[]>(`/api/alerts${suffix}`, cookieHeader);
 }
 
 export async function markAlertRead(alertId: number): Promise<Alert> {

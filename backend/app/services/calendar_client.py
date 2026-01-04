@@ -42,5 +42,48 @@ class CalendarClient:
             .execute()
         )
 
+    def list_events(
+        self,
+        calendar_id,
+        ical_uid=None,
+        time_min=None,
+        time_max=None,
+        max_results=10,
+    ):
+        params = {
+            "calendarId": calendar_id,
+            "singleEvents": True,
+            "maxResults": max_results,
+        }
+        if ical_uid:
+            params["iCalUID"] = ical_uid
+        if time_min:
+            params["timeMin"] = time_min
+        if time_max:
+            params["timeMax"] = time_max
+        return self._service.events().list(**params).execute()
+
+    def patch_event(self, calendar_id, event_id, event_body, send_updates="all"):
+        return (
+            self._service.events()
+            .patch(
+                calendarId=calendar_id,
+                eventId=event_id,
+                body=event_body,
+                sendUpdates=send_updates,
+            )
+            .execute()
+        )
+
+    def get_event(self, calendar_id, event_id):
+        return (
+            self._service.events()
+            .get(
+                calendarId=calendar_id,
+                eventId=event_id,
+            )
+            .execute()
+        )
+
     def list_calendars(self):
         return self._service.calendarList().list().execute()
