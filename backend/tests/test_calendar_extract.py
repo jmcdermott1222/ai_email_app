@@ -99,3 +99,36 @@ def test_extract_in_text_candidates_deterministic():
         payload = candidates[0].payload or {}
         assert payload.get("type") == "PROPOSED_TIME"
         assert str(payload.get("start", "")).startswith("2025-03-05")
+
+
+def test_extract_in_text_candidates_tomorrow_date_range():
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+    SessionLocal = sessionmaker(bind=engine)
+    Base.metadata.create_all(engine)
+
+    settings = Settings(
+        google_oauth_client_id="client",
+        google_oauth_client_secret="secret",
+    )
+
+    with SessionLocal() as session:
+        user = User(email="user@example.com", google_sub="sub-2")
+        session.add(user)
+        session.flush()
+        email = Email(
+            user_id=user.id,
+            gmail_message_id="msg-2",
+            subject="Chat",
+            clean_body_text="Hey - are you free tomorrow to chat about that thing?",
+        )
+        session.add(email)
+        session.commit()
+
+        now = datetime(2025, 1, 1, tzinfo=UTC)
+        candidates = extract_in_text_candidates(
+            session, settings, user.id, email.id, now=now
+        )
+        assert len(candidates) == 1
+        payload = candidates[0].payload or {}
+        assert payload.get("type") == "DATE_RANGE"
+        assert str(payload.get("start", "")).startswith("2025-01-02T09:00:00")

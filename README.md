@@ -134,3 +134,4 @@ make migrate   # apply alembic migrations
 - The backend uses FastAPI with SQLAlchemy 2.x and Alembic.
 - The web app is a minimal Next.js (App Router) scaffold with placeholder pages.
 - The API base URL is configured via `NEXT_PUBLIC_API_BASE_URL` in `.env`.
+- Inbox sync will auto-triage new emails, propose drafts for messages needing replies, and generate calendar candidates when meeting intent is detected.

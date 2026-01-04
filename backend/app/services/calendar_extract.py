@@ -28,7 +28,27 @@ from app.services.llm_schemas import (
 from app.services.preferences import default_preferences
 
 PROMPT_VERSION = "v1"
+DEFAULT_WINDOW_DAYS = 7
 TIME_PATTERN = re.compile(r"\b(\d{1,2}:\d{2}|\d{1,2}\s?(am|pm))\b", re.IGNORECASE)
+MEETING_INTENT_PATTERNS = [
+    re.compile(pattern, re.IGNORECASE)
+    for pattern in [
+        r"\bmeet(ing)?\b",
+        r"\bcall\b",
+        r"\bchat\b",
+        r"\btalk\b",
+        r"\bsync\b",
+        r"\bcatch up\b",
+        r"\bschedule\b",
+        r"\bcalendar\b",
+        r"\binvite\b",
+        r"\bappointment\b",
+        r"\bavailability\b",
+        r"\bavailable\b",
+        r"\bare you free\b",
+        r"\bfree to (meet|call|chat|talk)\b",
+    ]
+]
 logger = logging.getLogger(__name__)
 
 
@@ -125,6 +145,7 @@ def extract_in_text_candidates(
         "RELATIVE_BASE": base,
     }
     parsed = search_dates(text, settings=settings_map) or []
+    meeting_intent = _has_meeting_intent(text)
 
     deterministic = len(parsed) == 1 and _contains_explicit_time(parsed[0][0])
     if deterministic:
@@ -141,6 +162,40 @@ def extract_in_text_candidates(
             source="TEXT",
         )
         return _store_candidates(db, user_id, email_id, [candidate])
+
+    if meeting_intent:
+        working_hours = _working_hours(db, user_id)
+        candidate_dt = _select_meeting_date(parsed, base)
+        if candidate_dt:
+            start_dt, end_dt = _meeting_window_for_date(
+                candidate_dt.date(), working_hours
+            )
+            candidate = _build_candidate_payload(
+                candidate_type="DATE_RANGE",
+                title=email.subject,
+                start=start_dt,
+                end=end_dt,
+                attendees=_build_attendees(email),
+                location=None,
+                confidence=0.6,
+                source="TEXT_HEURISTIC",
+            )
+            return _store_candidates(db, user_id, email_id, [candidate])
+
+        if not parsed:
+            start_dt = base
+            end_dt = base + timedelta(days=DEFAULT_WINDOW_DAYS)
+            candidate = _build_candidate_payload(
+                candidate_type="DATE_RANGE",
+                title=email.subject,
+                start=start_dt,
+                end=end_dt,
+                attendees=_build_attendees(email),
+                location=None,
+                confidence=0.4,
+                source="TEXT_HEURISTIC",
+            )
+            return _store_candidates(db, user_id, email_id, [candidate])
 
     try:
         return _extract_with_llm(db, settings, email, user_id, email_id, text)
@@ -199,6 +254,17 @@ def _meeting_duration(db: Session, user_id: int) -> int:
     ).scalar_one_or_none()
     pref_data = preferences.preferences if preferences else default_preferences()
     return int(pref_data.get("meeting_default_duration_min", 30))
+
+
+def _working_hours(db: Session, user_id: int) -> dict:
+    preferences = db.execute(
+        select(UserPreferences).where(UserPreferences.user_id == user_id)
+    ).scalar_one_or_none()
+    pref_data = preferences.preferences if preferences else default_preferences()
+    working_hours = pref_data.get("working_hours") or default_preferences().get(
+        "working_hours"
+    )
+    return working_hours
 
 
 def _is_calendar_attachment(filename: str | None, mime_type: str | None) -> bool:
@@ -472,6 +538,52 @@ def _clamp_confidence(value: Any) -> float:
     except (TypeError, ValueError):
         return 0.5
     return max(0.0, min(1.0, number))
+
+
+def _has_meeting_intent(text: str) -> bool:
+    if not text:
+        return False
+    return any(pattern.search(text) for pattern in MEETING_INTENT_PATTERNS)
+
+
+def _select_meeting_date(
+    parsed: list[tuple[str, datetime]], base: datetime
+) -> datetime | None:
+    if not parsed:
+        return None
+    candidates = []
+    for match_text, match_dt in parsed:
+        if _contains_explicit_time(match_text):
+            continue
+        candidates.append(_ensure_datetime(match_dt))
+    if not candidates:
+        return None
+    future_candidates = [item for item in candidates if item >= base]
+    if future_candidates:
+        return min(future_candidates)
+    return min(candidates)
+
+
+def _meeting_window_for_date(
+    day: date, working_hours: dict
+) -> tuple[datetime, datetime]:
+    start_time = _parse_time_value(working_hours.get("start_time"), time(9, 0))
+    end_time = _parse_time_value(working_hours.get("end_time"), time(17, 0))
+    if end_time <= start_time:
+        end_time = time(17, 0)
+    start_dt = datetime.combine(day, start_time, tzinfo=UTC)
+    end_dt = datetime.combine(day, end_time, tzinfo=UTC)
+    return start_dt, end_dt
+
+
+def _parse_time_value(value: str | None, fallback: time) -> time:
+    if not value:
+        return fallback
+    try:
+        hours, minutes = value.split(":")
+        return time(int(hours), int(minutes))
+    except (ValueError, TypeError):
+        return fallback
 
 
 def _candidate_key(payload: dict[str, Any]) -> tuple:

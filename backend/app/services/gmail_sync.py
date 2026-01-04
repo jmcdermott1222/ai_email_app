@@ -12,10 +12,13 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.crypto import CryptoProvider
-from app.models import Attachment, Email, GoogleOAuthToken
+from app.models import Attachment, CalendarCandidate, Draft, Email, GoogleOAuthToken
+from app.services.calendar_extract import generate_calendar_candidates
+from app.services.drafts import propose_draft
 from app.services.email_parser import parse_message
 from app.services.gmail_client import GmailClient
 from app.services.google_credentials import build_credentials
+from app.services.triage import triage_email
 from app.services.vip_alerts import create_vip_alert_if_needed
 
 
@@ -190,6 +193,8 @@ def full_sync_inbox(
                         create_vip_alert_if_needed(db, user_id, email_row)
                     except Exception:
                         pass
+                    _auto_propose_draft(db, settings, crypto, user_id, email_row.id)
+                    _auto_propose_calendar(db, settings, crypto, user_id, email_row.id)
             db.commit()
         except Exception as exc:
             db.rollback()
@@ -209,3 +214,93 @@ def full_sync_inbox(
                 db.rollback()
 
     return SyncResult(fetched=fetched, upserted=upserted, errors=errors)
+
+
+def _auto_propose_draft(
+    db: Session,
+    settings: Settings,
+    crypto: CryptoProvider,
+    user_id: int,
+    email_id: int,
+) -> None:
+    existing_draft = db.execute(
+        select(Draft.id).where(Draft.user_id == user_id, Draft.email_id == email_id)
+    ).scalar_one_or_none()
+    if existing_draft:
+        return
+    try:
+        triage = triage_email(db, settings, user_id, email_id)
+    except Exception:
+        return
+    if not triage.needs_response:
+        return
+    try:
+        propose_draft(db, settings, crypto, user_id, email_id)
+    except Exception:
+        return
+
+
+def _auto_propose_calendar(
+    db: Session,
+    settings: Settings,
+    crypto: CryptoProvider,
+    user_id: int,
+    email_id: int,
+) -> None:
+    existing_candidate = db.execute(
+        select(CalendarCandidate.id).where(
+            CalendarCandidate.user_id == user_id,
+            CalendarCandidate.email_id == email_id,
+        )
+    ).scalar_one_or_none()
+    if existing_candidate:
+        return
+    email = db.execute(
+        select(Email).where(Email.id == email_id, Email.user_id == user_id)
+    ).scalar_one_or_none()
+    if not email:
+        return
+    text = " ".join(
+        [
+            segment
+            for segment in [email.subject or "", email.clean_body_text or ""]
+            if segment
+        ]
+    ).strip()
+    has_calendar_attachment = any(
+        (attachment.filename and attachment.filename.lower().endswith(".ics"))
+        or (attachment.mime_type or "").lower() == "text/calendar"
+        for attachment in email.attachments
+    )
+    has_meeting_intent = _text_has_meeting_intent(text)
+    if not has_calendar_attachment and not has_meeting_intent:
+        return
+    try:
+        generate_calendar_candidates(db, settings, crypto, user_id, email_id)
+    except Exception:
+        return
+
+
+def _text_has_meeting_intent(text: str) -> bool:
+    normalized = text.lower()
+    keywords = [
+        "meet",
+        "meeting",
+        "call",
+        "chat",
+        "talk",
+        "sync",
+        "catch up",
+        "schedule",
+        "calendar",
+        "invite",
+        "appointment",
+        "availability",
+        "available",
+        "are you free",
+        "free to meet",
+        "free to chat",
+        "free to talk",
+        "free to call",
+    ]
+    return any(keyword in normalized for keyword in keywords)
