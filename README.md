@@ -151,3 +151,56 @@ make migrate   # apply alembic migrations
 
 Queueing: `QUEUE_MODE=local` runs incremental sync inline. Set `QUEUE_MODE=cloud_tasks` and
 populate `CLOUD_TASKS_*` + `CLOUD_TASKS_TARGET_URL` to emit Cloud Tasks payloads.
+
+## Deployment (GCP)
+
+Terraform lives in `infra/terraform`.
+
+1. Configure Terraform variables (example `infra/terraform/terraform.tfvars`):
+
+```hcl
+project_id              = "your-gcp-project"
+region                  = "us-central1"
+api_image               = "gcr.io/your-gcp-project/clearview-api:latest"
+worker_image            = "gcr.io/your-gcp-project/clearview-worker:latest"
+web_base_url            = "https://your-web-domain"
+api_base_url            = "https://your-api-domain"
+google_oauth_redirect_uri = "https://your-api-domain/auth/google/callback"
+
+db_password             = "replace-with-strong-password"
+google_oauth_client_id  = "..."
+google_oauth_client_secret = "..."
+openai_api_key          = "..."
+session_jwt_secret      = "..."
+encryption_key          = "..."
+webhook_secret          = "optional-for-local"
+```
+
+2. Build and push images:
+
+```bash
+gcloud auth configure-docker
+docker build -f backend/Dockerfile.api -t gcr.io/your-gcp-project/clearview-api:latest .
+docker build -f backend/Dockerfile.worker -t gcr.io/your-gcp-project/clearview-worker:latest .
+docker push gcr.io/your-gcp-project/clearview-api:latest
+docker push gcr.io/your-gcp-project/clearview-worker:latest
+```
+
+3. Apply Terraform:
+
+```bash
+cd infra/terraform
+terraform init
+terraform fmt
+terraform validate
+terraform apply
+```
+
+4. Set OAuth redirect URI in Google Cloud Console:
+
+- `https://your-api-domain/auth/google/callback`
+
+5. Gmail push publisher permissions:
+
+- Ensure `gmail-api-push@system.gserviceaccount.com` has `roles/pubsub.publisher` on the
+  `gmail-push-topic` Pub/Sub topic (Terraform applies this binding).
