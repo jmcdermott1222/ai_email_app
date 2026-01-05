@@ -4,7 +4,7 @@ resource "google_sql_database_instance" "main" {
   region           = var.region
 
   settings {
-    tier = var.db_tier
+    tier      = var.db_tier
     disk_size = var.db_disk_gb
     ip_configuration {
       ipv4_enabled = true

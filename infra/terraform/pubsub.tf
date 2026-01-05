@@ -1,5 +1,5 @@
 resource "google_pubsub_topic" "gmail_push" {
-  name = var.pubsub_topic_name
+  name       = var.pubsub_topic_name
   depends_on = [google_project_service.services]
 }
 

@@ -1,6 +1,6 @@
 resource "google_kms_key_ring" "token_ring" {
-  name     = var.kms_key_ring_name
-  location = var.region
+  name       = var.kms_key_ring_name
+  location   = var.region
   depends_on = [google_project_service.services]
 }
 
