@@ -104,3 +104,30 @@ class GmailClient:
             .create(userId="me", body={"name": name})
             .execute()
         )
+
+    def list_history(
+        self,
+        start_history_id,
+        history_types=None,
+        label_id=None,
+        max_results=500,
+        page_token=None,
+    ):
+        params = {
+            "userId": "me",
+            "startHistoryId": start_history_id,
+            "maxResults": max_results,
+        }
+        if history_types:
+            params["historyTypes"] = history_types
+        if label_id:
+            params["labelId"] = label_id
+        if page_token:
+            params["pageToken"] = page_token
+        return self._service.users().history().list(**params).execute()
+
+    def watch(self, topic_name, label_ids=None):
+        body = {"topicName": topic_name}
+        if label_ids:
+            body["labelIds"] = label_ids
+        return self._service.users().watch(userId="me", body=body).execute()

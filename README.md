@@ -100,6 +100,7 @@ make web-dev
 - Emails (requires session cookie): `http://localhost:8000/api/emails`
 - Latest digest (requires session cookie): `GET http://localhost:8000/api/digests/latest`
 - Run digest now (requires session cookie, syncs inbox first): `POST http://localhost:8000/api/digests/run_now`
+- Gmail push webhook (Pub/Sub push): `POST http://localhost:8000/webhooks/gmail/push`
 - VIP alerts (requires session cookie): `GET http://localhost:8000/api/alerts`
 - Mark alert read (requires session cookie): `POST http://localhost:8000/api/alerts/{id}/mark_read`
 - Attachment processing (requires session cookie): `POST http://localhost:8000/api/emails/{id}/attachments/process`
@@ -118,6 +119,8 @@ make web-dev
 - List drafts (requires session cookie): `GET http://localhost:8000/api/drafts?email_id={id}`
 - Snooze sweep (worker): `POST http://localhost:8001/internal/jobs/snooze_sweep`
 - Digest run for all users (worker, syncs inbox first): `POST http://localhost:8001/internal/jobs/digest_run`
+- Incremental sync (worker): `POST http://localhost:8001/internal/jobs/incremental_sync`
+- Renew Gmail watches (worker): `POST http://localhost:8001/internal/jobs/renew_watches`
 
 ## Common Commands
 
@@ -135,3 +138,16 @@ make migrate   # apply alembic migrations
 - The web app is a minimal Next.js (App Router) scaffold with placeholder pages.
 - The API base URL is configured via `NEXT_PUBLIC_API_BASE_URL` in `.env`.
 - Inbox sync will auto-triage new emails, propose drafts for messages needing replies, and generate calendar candidates when meeting intent is detected.
+
+## Gmail Push Notifications
+
+1. Create a Pub/Sub topic, e.g. `projects/your-project/topics/ai-email-gmail`.
+2. Set `PUBSUB_TOPIC` in `.env` to the topic name.
+3. Create a push subscription to `https://YOUR_API/webhooks/gmail/push`.
+4. For local dev, set `WEBHOOK_SECRET` and include `X-Webhook-Secret` on push requests.
+5. For production, configure the subscription to attach an OIDC token and ensure the
+   audience matches `API_BASE_URL/webhooks/gmail/push`.
+6. Call `POST http://localhost:8001/internal/jobs/renew_watches` after OAuth to start watches.
+
+Queueing: `QUEUE_MODE=local` runs incremental sync inline. Set `QUEUE_MODE=cloud_tasks` and
+populate `CLOUD_TASKS_*` + `CLOUD_TASKS_TARGET_URL` to emit Cloud Tasks payloads.

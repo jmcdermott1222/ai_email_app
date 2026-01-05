@@ -5,6 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
+from googleapiclient.errors import HttpError
 from sqlalchemy import select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
@@ -12,7 +13,14 @@ from sqlalchemy.orm import Session
 
 from app.config import Settings
 from app.crypto import CryptoProvider
-from app.models import Attachment, CalendarCandidate, Draft, Email, GoogleOAuthToken
+from app.models import (
+    Attachment,
+    CalendarCandidate,
+    Draft,
+    Email,
+    GmailSyncState,
+    GoogleOAuthToken,
+)
 from app.services.calendar_extract import generate_calendar_candidates
 from app.services.drafts import propose_draft
 from app.services.email_parser import parse_message
@@ -59,6 +67,40 @@ def _upsert_attachment(db: Session, values: dict) -> None:
     )
 
 
+def _upsert_email(db: Session, values: dict, error: bool = False) -> None:
+    dialect = db.bind.dialect.name if db.bind else "postgresql"
+    if dialect == "sqlite":
+        insert_stmt = sqlite_insert(Email).values(**values)
+    else:
+        insert_stmt = pg_insert(Email).values(**values)
+    if error:
+        set_fields = {
+            "ingest_status": "ERROR",
+            "ingest_error": values.get("ingest_error"),
+            "updated_at": datetime.now(UTC),
+        }
+    else:
+        set_fields = {
+            "gmail_thread_id": insert_stmt.excluded.gmail_thread_id,
+            "internal_date_ts": insert_stmt.excluded.internal_date_ts,
+            "subject": insert_stmt.excluded.subject,
+            "snippet": insert_stmt.excluded.snippet,
+            "from_email": insert_stmt.excluded.from_email,
+            "to_emails": insert_stmt.excluded.to_emails,
+            "cc_emails": insert_stmt.excluded.cc_emails,
+            "label_ids": insert_stmt.excluded.label_ids,
+            "ingest_status": insert_stmt.excluded.ingest_status,
+            "ingest_error": insert_stmt.excluded.ingest_error,
+            "updated_at": datetime.now(UTC),
+        }
+    db.execute(
+        insert_stmt.on_conflict_do_update(
+            index_elements=["user_id", "gmail_message_id"],
+            set_=set_fields,
+        )
+    )
+
+
 def full_sync_inbox(
     db: Session,
     user_id: int,
@@ -95,39 +137,6 @@ def full_sync_inbox(
     upserted = 0
     errors = 0
 
-    def upsert_email(values: dict, error: bool = False) -> None:
-        dialect = db.bind.dialect.name if db.bind else "postgresql"
-        if dialect == "sqlite":
-            insert_stmt = sqlite_insert(Email).values(**values)
-        else:
-            insert_stmt = pg_insert(Email).values(**values)
-        if error:
-            set_fields = {
-                "ingest_status": "ERROR",
-                "ingest_error": values.get("ingest_error"),
-                "updated_at": datetime.now(UTC),
-            }
-        else:
-            set_fields = {
-                "gmail_thread_id": insert_stmt.excluded.gmail_thread_id,
-                "internal_date_ts": insert_stmt.excluded.internal_date_ts,
-                "subject": insert_stmt.excluded.subject,
-                "snippet": insert_stmt.excluded.snippet,
-                "from_email": insert_stmt.excluded.from_email,
-                "to_emails": insert_stmt.excluded.to_emails,
-                "cc_emails": insert_stmt.excluded.cc_emails,
-                "label_ids": insert_stmt.excluded.label_ids,
-                "ingest_status": insert_stmt.excluded.ingest_status,
-                "ingest_error": insert_stmt.excluded.ingest_error,
-                "updated_at": datetime.now(UTC),
-            }
-        db.execute(
-            insert_stmt.on_conflict_do_update(
-                index_elements=["user_id", "gmail_message_id"],
-                set_=set_fields,
-            )
-        )
-
     for message in messages:
         message_id = message.get("id")
         if not message_id:
@@ -147,7 +156,8 @@ def full_sync_inbox(
             thread_id = full_message.get("threadId")
             label_ids = full_message.get("labelIds", [])
 
-            upsert_email(
+            _upsert_email(
+                db,
                 {
                     "user_id": user_id,
                     "gmail_message_id": message_id,
@@ -163,7 +173,7 @@ def full_sync_inbox(
                     "ingest_status": "INGESTED",
                     "ingest_error": None,
                     "clean_body_text": parsed.clean_body_text,
-                }
+                },
             )
             upserted += 1
             email_row = db.execute(
@@ -200,7 +210,8 @@ def full_sync_inbox(
             db.rollback()
             errors += 1
             try:
-                upsert_email(
+                _upsert_email(
+                    db,
                     {
                         "user_id": user_id,
                         "gmail_message_id": message_id,
@@ -214,6 +225,218 @@ def full_sync_inbox(
                 db.rollback()
 
     return SyncResult(fetched=fetched, upserted=upserted, errors=errors)
+
+
+def incremental_sync(
+    db: Session,
+    user_id: int,
+    settings: Settings,
+    crypto: CryptoProvider,
+    history_id: str,
+    client: GmailClient | None = None,
+    fallback_days: int = 30,
+) -> SyncResult:
+    """Fetch new messages since the last history ID and upsert them."""
+    if client is None:
+        token_row = db.execute(
+            select(GoogleOAuthToken).where(GoogleOAuthToken.user_id == user_id)
+        ).scalar_one_or_none()
+        if not token_row:
+            raise ValueError("Missing OAuth token row for user")
+        creds = build_credentials(db, token_row, settings, crypto).credentials
+        client = GmailClient(credentials=creds)
+
+    sync_state = _get_sync_state(db, user_id)
+    start_history_id = sync_state.history_id
+    if not start_history_id:
+        result = full_sync_inbox(db, user_id, settings, crypto, days=fallback_days)
+        _update_history_id(sync_state, history_id)
+        sync_state.last_full_sync_at = datetime.now(UTC)
+        db.commit()
+        return result
+
+    histories = []
+    latest_history_id = None
+    page_token = None
+    try:
+        while True:
+            response = client.list_history(
+                start_history_id=start_history_id,
+                history_types=["messageAdded"],
+                page_token=page_token,
+            )
+            latest_history_id = response.get("historyId") or latest_history_id
+            histories.extend(response.get("history", []) or [])
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+    except HttpError as exc:
+        status_code = getattr(exc.resp, "status", None)
+        try:
+            status_code = int(status_code) if status_code is not None else None
+        except (TypeError, ValueError):
+            status_code = None
+        if status_code in {400, 404}:
+            result = full_sync_inbox(db, user_id, settings, crypto, days=fallback_days)
+            _update_history_id(sync_state, history_id)
+            sync_state.last_full_sync_at = datetime.now(UTC)
+            db.commit()
+            return result
+        raise
+
+    message_ids = _extract_history_message_ids(histories)
+    fetched = len(message_ids)
+    upserted = 0
+    errors = 0
+
+    for message_id in message_ids:
+        if not message_id:
+            continue
+        existing_email = db.execute(
+            select(Email.id).where(
+                Email.user_id == user_id,
+                Email.gmail_message_id == message_id,
+            )
+        ).scalar_one_or_none()
+        is_new = existing_email is None
+        try:
+            full_message = client.get_message(message_id, format="full")
+            parsed = parse_message(full_message)
+            snippet = full_message.get("snippet")
+            internal_date = _parse_internal_date(full_message.get("internalDate"))
+            thread_id = full_message.get("threadId")
+            label_ids = full_message.get("labelIds", [])
+
+            _upsert_email(
+                db,
+                {
+                    "user_id": user_id,
+                    "gmail_message_id": message_id,
+                    "gmail_thread_id": thread_id,
+                    "internal_date_ts": internal_date,
+                    "subject": parsed.subject,
+                    "snippet": snippet,
+                    "from_email": parsed.from_email,
+                    "to_emails": parsed.to_emails,
+                    "cc_emails": parsed.cc_emails,
+                    "label_ids": label_ids,
+                    "raw_payload": None,
+                    "ingest_status": "INGESTED",
+                    "ingest_error": None,
+                    "clean_body_text": parsed.clean_body_text,
+                },
+            )
+            upserted += 1
+            email_row = db.execute(
+                select(Email).where(
+                    Email.user_id == user_id,
+                    Email.gmail_message_id == message_id,
+                )
+            ).scalar_one_or_none()
+            if email_row:
+                for attachment in parsed.attachments:
+                    if not attachment.attachment_id:
+                        continue
+                    _upsert_attachment(
+                        db,
+                        {
+                            "user_id": user_id,
+                            "email_id": email_row.id,
+                            "gmail_attachment_id": attachment.attachment_id,
+                            "filename": attachment.filename,
+                            "mime_type": attachment.mime_type,
+                            "size_bytes": attachment.size_estimate,
+                            "extraction_status": "NOT_PROCESSED",
+                        },
+                    )
+                if is_new:
+                    try:
+                        alert = create_vip_alert_if_needed(db, user_id, email_row)
+                        if alert:
+                            triage_email(db, settings, user_id, email_row.id)
+                    except Exception:
+                        pass
+                    _auto_propose_draft(db, settings, crypto, user_id, email_row.id)
+                    _auto_propose_calendar(db, settings, crypto, user_id, email_row.id)
+            db.commit()
+        except Exception as exc:
+            db.rollback()
+            errors += 1
+            try:
+                _upsert_email(
+                    db,
+                    {
+                        "user_id": user_id,
+                        "gmail_message_id": message_id,
+                        "ingest_status": "ERROR",
+                        "ingest_error": str(exc),
+                    },
+                    error=True,
+                )
+                db.commit()
+            except Exception:
+                db.rollback()
+
+    _update_history_id(sync_state, latest_history_id or history_id)
+    db.commit()
+    return SyncResult(fetched=fetched, upserted=upserted, errors=errors)
+
+
+def _get_sync_state(db: Session, user_id: int) -> GmailSyncState:
+    sync_state = db.execute(
+        select(GmailSyncState).where(GmailSyncState.user_id == user_id)
+    ).scalar_one_or_none()
+    if not sync_state:
+        sync_state = GmailSyncState(user_id=user_id)
+        db.add(sync_state)
+        db.commit()
+    return sync_state
+
+
+def _update_history_id(sync_state: GmailSyncState, new_history_id: str | None) -> None:
+    if not new_history_id:
+        return
+    current = _normalize_history_id(sync_state.history_id)
+    incoming = _normalize_history_id(str(new_history_id))
+    if current is None or incoming is None:
+        sync_state.history_id = str(new_history_id)
+        return
+    if incoming >= current:
+        sync_state.history_id = str(new_history_id)
+
+
+def _normalize_history_id(value: str | None) -> int | None:
+    if not value:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_history_message_ids(histories: list[dict]) -> list[str]:
+    message_ids: set[str] = set()
+    for entry in histories:
+        for added in entry.get("messagesAdded", []) or []:
+            message = (added or {}).get("message") or {}
+            message_id = message.get("id")
+            if message_id:
+                message_ids.add(message_id)
+        for message in entry.get("messages", []) or []:
+            message_id = (message or {}).get("id")
+            if message_id:
+                message_ids.add(message_id)
+        for label_item in entry.get("labelsAdded", []) or []:
+            message = (label_item or {}).get("message") or {}
+            message_id = message.get("id")
+            if message_id:
+                message_ids.add(message_id)
+        for label_item in entry.get("labelsRemoved", []) or []:
+            message = (label_item or {}).get("message") or {}
+            message_id = message.get("id")
+            if message_id:
+                message_ids.add(message_id)
+    return list(message_ids)
 
 
 def _auto_propose_draft(

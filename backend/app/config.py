@@ -42,6 +42,15 @@ class Settings(BaseSettings):
     openai_api_key: str = Field(default="")
     openai_model: str = Field(default="gpt-5.2")
 
+    webhook_secret: str = Field(default="")
+    pubsub_topic: str = Field(default="")
+    queue_mode: str = Field(default="local")
+    cloud_tasks_project: str = Field(default="")
+    cloud_tasks_location: str = Field(default="")
+    cloud_tasks_queue: str = Field(default="")
+    cloud_tasks_service_account: str = Field(default="")
+    cloud_tasks_target_url: str = Field(default="")
+
     def resolved_database_url(self) -> str:
         """Return a SQLAlchemy-compatible database URL."""
         if self.database_url:
