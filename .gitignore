@@ -14,6 +14,7 @@ web/.next/
 
 # Terraform
 infra/terraform/.terraform/
+infra/terraform/terraform.tfvars
 
 # Logs
 backend/*.log

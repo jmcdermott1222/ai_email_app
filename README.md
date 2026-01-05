@@ -156,7 +156,8 @@ populate `CLOUD_TASKS_*` + `CLOUD_TASKS_TARGET_URL` to emit Cloud Tasks payloads
 
 Terraform lives in `infra/terraform`.
 
-1. Configure Terraform variables (example `infra/terraform/terraform.tfvars`):
+1. Configure Terraform variables (copy `infra/terraform/terraform.tfvars.example` to
+   `infra/terraform/terraform.tfvars`):
 
 ```hcl
 project_id              = "your-gcp-project"
